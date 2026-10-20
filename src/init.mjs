@@ -25,7 +25,6 @@ export async function init(dir, opts = {}) {
   const cfg = {
     version: pkgVersion(),
     name: a.name,
-    memory: a.memory,
     hooks: a.hooks,
     reminderMinutes: prev?.reminderMinutes ?? 30,
   };

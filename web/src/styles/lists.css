@@ -1,0 +1,91 @@
+/* 规划 */
+.backlog { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.backlog.with-panel { grid-template-columns: minmax(0, 1fr) 420px; }
+.backlog-main { max-width: 900px; }
+.quick-add {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 16px;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; box-shadow: var(--shadow);
+}
+.quick-add .input.grow { border-color: transparent; font-size: 15px; }
+.quick-add .input.grow:focus { box-shadow: none; }
+.blist { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.brow { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--line); transition: background 0.1s; }
+.brow:first-child { border-top: 0; }
+.brow:hover { background: var(--bg-2); }
+.brow.active { background: var(--accent-soft); }
+.brow.dragging { opacity: 0.4; }
+.brow.drop-at { box-shadow: inset 0 2px 0 var(--accent); }
+.grip { cursor: grab; color: var(--line-2); letter-spacing: -2px; font-size: 13px; user-select: none; padding: 2px; }
+.brow:hover .grip { color: var(--muted); }
+.brow-n { width: 22px; text-align: right; color: var(--muted); font-size: 12.5px; }
+.prio { font-size: 11.5px; padding: 0 7px; border-radius: 3px; flex: none; font-weight: 500; }
+.brow-title { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 2px 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow-title:hover { color: var(--accent); }
+.brow-img, .brow-date { font-size: 12px; color: var(--muted); flex: none; }
+.backlog-main .hint { margin-top: 10px; }
+
+.bpanel {
+  position: sticky; top: 118px; display: flex; flex-direction: column; gap: 14px; padding: 14px 16px;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--shadow-lift);
+  max-height: calc(100vh - 140px); overflow-y: auto; animation: rise 0.16s ease-out;
+}
+.bpanel-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.bpanel-preview { min-height: 220px; padding: 2px 12px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); }
+.bpanel-foot { display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--radius); overflow: hidden; align-self: flex-start; }
+.seg-btn { border: 0; padding: 4px 16px; cursor: pointer; background: var(--panel) !important; color: var(--muted) !important; }
+.seg-btn + .seg-btn { border-left: 1px solid var(--line-2); }
+.seg-btn.on { font-weight: 600; }
+.seg-btn.on.tone-high { background: var(--t-active-bg) !important; color: var(--t-active) !important; }
+.seg-btn.on.tone-medium { background: var(--t-wait-bg) !important; color: var(--t-wait) !important; }
+.seg-btn.on.tone-low { background: var(--t-muted-bg) !important; color: var(--ink-2) !important; }
+
+/* 历史 */
+.filters { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.month { margin-bottom: 22px; }
+.month-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.hlist { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.hlist li + li { border-top: 1px solid var(--line); }
+.hrow { display: grid; grid-template-columns: 92px minmax(0, 1fr) minmax(0, 200px) auto 120px; gap: 14px; align-items: center; padding: 8px 14px; }
+.hrow:hover { background: var(--bg-2); }
+.hrow-date { font-size: 12px; color: var(--muted); }
+.hrow-main { display: flex; flex-direction: column; min-width: 0; }
+.hrow-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow-snippet { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hrow-note { font-size: 11.5px; color: var(--t-done); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 会话记录 */
+.sessions { max-width: none; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 18px; align-items: start; }
+.slist { position: sticky; top: 118px; display: flex; flex-direction: column; max-height: calc(100vh - 140px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.srow { display: flex; flex-direction: column; padding: 8px 12px; border-top: 1px solid var(--line); }
+.srow:first-child { border-top: 0; }
+.srow:hover { background: var(--bg-2); }
+.srow.active { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.srow-key { font-size: 12px; color: var(--muted); }
+.srow-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sbody { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 28px 20px; max-width: 900px; }
+.sbody-meta { font-size: 12px; padding: 4px 0 6px; border-bottom: 1px dashed var(--line); }
+
+/* 扫描弹窗 */
+.scan-form { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 14px; }
+.scan-form .field { flex: 1; }
+.scan-summary { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+.scan-bulk { display: flex; gap: 12px; }
+.scan-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; max-height: 46vh; overflow-y: auto; }
+.scan-list li + li { border-top: 1px solid var(--line); }
+.scan-list label { display: grid; grid-template-columns: 20px minmax(0, 1fr) 80px auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 7px 12px; cursor: pointer; }
+.scan-list li.registered label { cursor: default; opacity: 0.65; }
+.scan-list li:not(.registered) label:hover { background: var(--bg-2); }
+.scan-name { font-weight: 500; }
+.scan-count { font-size: 12px; color: var(--muted); text-align: right; }
+.scan-path { grid-column: 2 / -1; font-size: 11.5px; color: var(--muted); }
+.scan-check.done { color: var(--t-done); text-align: center; }
+
+@media (max-width: 1100px) {
+  .backlog.with-panel { grid-template-columns: 1fr; }
+  .bpanel { position: static; max-height: none; }
+  .hrow { grid-template-columns: 80px minmax(0, 1fr) auto; }
+  .hrow-note, .hrow .progress { display: none; }
+  .sessions { grid-template-columns: 1fr; }
+  .slist { position: static; max-height: 240px; }
+}

@@ -16,7 +16,7 @@ export function templateVars(root, cfg, extra = {}) {
     name: cfg.name || '用户',
     hooks: cfg.hooks,
     reminder: cfg.reminderMinutes,
-    memoryDir: memoryDirDisplay(root, cfg.memory),
+    memoryDir: memoryDirDisplay(root),
     ...extra,
   };
 }
@@ -38,8 +38,6 @@ export function writeManaged(root, cfg, w) {
   const readme = path.join(root, 'docs', 'task-history', 'README.md');
   const managed = fs.existsSync(readme) && fs.readFileSync(readme, 'utf8').includes(MANAGED);
   w.write(readme, render(readTemplate('task-history-README.md'), templateVars(root, cfg)), { overwrite: managed });
-
-  if (cfg.memory === 'repo') ensureGitignore(root, '.ai/memory/sessions/', w);
 }
 
 // 骨架：只建不改（当月/今日索引、记忆目录）
@@ -48,7 +46,7 @@ export function writeSkeleton(root, cfg, w) {
   w.write(path.join(root, 'docs', 'task-history', month, 'index.md'), render(readTemplate('month-index.md'), { month }));
   w.write(path.join(root, 'docs', 'tasks', day, 'index.md'), `# ${day} 任务索引\n\n`);
 
-  const mem = memoryDir(root, cfg.memory);
+  const mem = memoryDir(root);
   w.mkdir(path.join(mem, 'sessions'));
   const indexFile = path.join(mem, 'MEMORY.md');
   const old = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, 'utf8') : null;
@@ -56,11 +54,4 @@ export function writeSkeleton(root, cfg, w) {
   else if (!old.includes('](sessions/')) {
     w.write(indexFile, (old.trim() ? old.trimEnd() + '\n' : '') + SESSIONS_POINTER, { overwrite: true });
   }
-}
-
-function ensureGitignore(root, line, w) {
-  const file = path.join(root, '.gitignore');
-  const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  if (old.split('\n').some((l) => l.trim() === line)) return;
-  w.write(file, (old.trim() ? old.trimEnd() + '\n' : '') + line + '\n', { overwrite: true });
 }

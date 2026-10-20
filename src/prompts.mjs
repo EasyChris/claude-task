@@ -6,7 +6,6 @@ export async function collectAnswers(opts, { prev, hasClaudeMd }) {
     name: opts.name ?? prev?.name ?? '',
     intro: opts.intro ?? '',
     features: opts.features ?? '',
-    memory: opts.memory ?? prev?.memory ?? 'home',
     hooks: opts.hooks ?? prev?.hooks ?? true,
   };
   if (opts.yes || !process.stdin.isTTY) return a;
@@ -18,11 +17,6 @@ export async function collectAnswers(opts, { prev, hasClaudeMd }) {
     if (!hasClaudeMd) {
       if (opts.intro === undefined) a.intro = await ask('项目介绍（一两句，可留空以后再写）', '');
       if (opts.features === undefined) a.features = await ask('主要功能（逗号分隔，可留空）', '');
-    }
-    if (opts.memory === undefined) {
-      const def = a.memory === 'repo' ? '2' : '1';
-      const m = await ask('记忆放哪里？1) ~/.claude/projects（推荐） 2) 仓库 .ai/memory', def);
-      a.memory = m === '2' ? 'repo' : 'home';
     }
     if (opts.hooks === undefined) {
       const h = await ask('安装 hooks（开场自动加载记忆、定时提醒写会话记录）？Y/n', a.hooks ? 'Y' : 'n');

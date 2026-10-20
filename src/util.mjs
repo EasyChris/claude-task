@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveMemoryDir } from '../templates/hook.mjs';
 
 export const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BLOCK_START = '<!-- claude-task:start';
@@ -43,14 +44,13 @@ export function resolveRoot(dir) {
   }
 }
 
-export function memoryDir(root, mode) {
-  return mode === 'repo'
-    ? path.join(root, '.ai', 'memory')
-    : path.join(claudeConfigDir(), 'projects', projectSlug(root), 'memory');
+// 与 Claude Code 的 auto memory 同一个目录（实现放在 hook 里，CLI 和 hook 共用一份）
+export function memoryDir(root) {
+  return resolveMemoryDir(root);
 }
 
-export function memoryDirDisplay(root, mode) {
-  return mode === 'repo' ? '.ai/memory/' : tildify(memoryDir(root, mode)) + '/';
+export function memoryDirDisplay(root) {
+  return tildify(memoryDir(root)) + '/';
 }
 
 export function localDate(d = new Date()) {

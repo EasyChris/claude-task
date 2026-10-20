@@ -7,7 +7,7 @@ import { beforeEach, test } from 'node:test';
 import { init } from '../src/init.mjs';
 import { mergeHooks } from '../src/settings.mjs';
 import { update } from '../src/update.mjs';
-import { PKG_ROOT, localDate, projectSlug } from '../src/util.mjs';
+import { PKG_ROOT, localDate, memoryDir, projectSlug } from '../src/util.mjs';
 
 let root;
 let home;
@@ -131,11 +131,28 @@ test('--dry-run 不写任何文件', async () => {
   assert.ok(!fs.existsSync(home + '/.claude'));
 });
 
-test('--memory repo 写到仓库并忽略 sessions', async () => {
-  await init(root, { ...opts, memory: 'repo' });
-  assert.ok(exists('.ai', 'memory', 'MEMORY.md'));
-  assert.match(read('.gitignore'), /^\.ai\/memory\/sessions\/$/m);
-  assert.match(read('CLAUDE.md'), /记忆目录：`\.ai\/memory\/`/);
+test('update 去掉旧配置里的 memory 字段', async () => {
+  await init(root, opts);
+  const cfgFile = path.join(root, '.claude', 'claude-task.json');
+  fs.writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(read('.claude', 'claude-task.json')), memory: 'home' }));
+  update(root, {});
+  assert.equal(JSON.parse(read('.claude', 'claude-task.json')).memory, undefined);
+});
+
+test('记忆目录与 auto memory 一致：worktree 和子目录归到主仓库，autoMemoryDirectory 优先', () => {
+  const main = path.join(fs.realpathSync(root), 'main');
+  fs.mkdirSync(path.join(main, 'sub'), { recursive: true });
+  const git = (...a) => execFileSync('git', a, { cwd: main, stdio: 'ignore' });
+  git('init', '-q');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init');
+  git('worktree', 'add', '-q', '../wt', '-b', 'wt');
+  const expected = path.join(home, '.claude', 'projects', projectSlug(main), 'memory');
+  assert.equal(memoryDir(main), expected);
+  assert.equal(memoryDir(path.join(main, 'sub')), expected);
+  assert.equal(memoryDir(path.join(fs.realpathSync(root), 'wt')), expected);
+  fs.mkdirSync(path.join(main, '.claude'));
+  fs.writeFileSync(path.join(main, '.claude', 'settings.json'), JSON.stringify({ autoMemoryDirectory: '~/my-mem' }));
+  assert.equal(memoryDir(main), path.join(os.homedir(), 'my-mem'));
 });
 
 function runHook(mode, input, env = {}) {
@@ -146,20 +163,30 @@ function runHook(mode, input, env = {}) {
   });
 }
 
-test('hook session-start 注入记忆与最近会话，并建好今日目录', async () => {
+test('hook session-start 注入最近会话（按文件名）、不重复注入 MEMORY.md，并建好今日目录', async () => {
   await init(root, opts);
   const { day } = localDate();
   fs.rmSync(path.join(root, 'docs', 'tasks', day), { recursive: true });
+  fs.writeFileSync(path.join(memDir(), 'sessions', '2026-10-20-02.md'), '# Session 最新');
   fs.writeFileSync(path.join(memDir(), 'sessions', '2026-10-19-01.md'), '# Session 旧');
-  fs.writeFileSync(path.join(memDir(), 'sessions', '2026-10-20-01.md'), '# Session 最新');
-  fs.utimesSync(path.join(memDir(), 'sessions', '2026-10-19-01.md'), new Date(0), new Date(0));
+  fs.utimesSync(path.join(memDir(), 'sessions', '2026-10-20-02.md'), new Date(0), new Date(0)); // 旧记录后改过也不算最新
   const out = runHook('session-start', { session_id: 's1', source: 'startup' });
   assert.match(out, /\[claude-task\] 今天是/);
-  assert.match(out, /\]\(sessions\//);
+  assert.doesNotMatch(out, /\]\(sessions\//);
   assert.match(out, /# Session 最新/);
   assert.doesNotMatch(out, /# Session 旧/);
   assert.ok(exists('docs', 'tasks', day, 'index.md'));
   assert.match(runHook('session-start', { session_id: 's1', source: 'compact' }), /上下文刚被压缩/);
+});
+
+test('hook 会话记录太长时保留标题和待办', async () => {
+  await init(root, opts);
+  const body = `# Session 2026-10-20-01 - 长记录\n\n## 任务概述\n${'过程'.repeat(3000)}\n\n## 待办事项\n- [ ] 末尾的待办`;
+  fs.writeFileSync(path.join(memDir(), 'sessions', '2026-10-20-01.md'), body);
+  const out = runHook('session-start', { session_id: 's3', source: 'startup' });
+  assert.match(out, /# Session 2026-10-20-01 - 长记录/);
+  assert.match(out, /- \[ \] 末尾的待办/);
+  assert.match(out, /中间已省略/);
 });
 
 test('hook user-prompt-submit 到时间才提醒', async () => {

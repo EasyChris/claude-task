@@ -1,0 +1,148 @@
+/* 设计方向：账本 / 工作日志。暖纸色底、墨色文字、朱砂红点缀；数字和日期用等宽字体，像手账里的编号 */
+:root {
+  --bg: #f4f1ea;
+  --bg-2: #ece8de;
+  --panel: #fbfaf6;
+  --ink: #1d1b17;
+  --ink-2: #3d3a33;
+  --muted: #7a7466;
+  --line: #ddd7c9;
+  --line-2: #cfc8b7;
+  --accent: #c2412b;
+  --accent-ink: #fbfaf6;
+  --accent-soft: #f3ddd5;
+  --t-active: #c2412b;
+  --t-active-bg: #f6e2da;
+  --t-done: #3f7a4f;
+  --t-done-bg: #e1ecdf;
+  --t-plan: #2f5d8a;
+  --t-plan-bg: #dfe7f0;
+  --t-wait: #a56a12;
+  --t-wait-bg: #f4e7cc;
+  --t-muted: #7a7466;
+  --t-muted-bg: #e8e4da;
+  --shadow: 0 1px 0 rgba(29, 27, 23, 0.04), 0 2px 6px rgba(29, 27, 23, 0.05);
+  --shadow-lift: 0 6px 18px rgba(29, 27, 23, 0.12);
+  --radius: 6px;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --sans: 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171614;
+    --bg-2: #1f1d1a;
+    --panel: #22201c;
+    --ink: #ece7dc;
+    --ink-2: #cfc9bc;
+    --muted: #8f8879;
+    --line: #34312b;
+    --line-2: #45413a;
+    --accent: #e0644b;
+    --accent-ink: #1a1815;
+    --accent-soft: #3a2420;
+    --t-active: #e9745c;
+    --t-active-bg: #3a2420;
+    --t-done: #7fb98d;
+    --t-done-bg: #1f2f23;
+    --t-plan: #82a9d4;
+    --t-plan-bg: #1e2a37;
+    --t-wait: #d9a54c;
+    --t-wait-bg: #352a17;
+    --t-muted: #8f8879;
+    --t-muted-bg: #2a2824;
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+    --shadow-lift: 0 8px 22px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+/* 纸面的细横线，只在主区域很淡地出现 */
+.main {
+  background-image: repeating-linear-gradient(to bottom, transparent 0 31px, color-mix(in srgb, var(--line) 35%, transparent) 31px 32px);
+}
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+code, .mono { font-family: var(--mono); font-size: 0.92em; letter-spacing: -0.01em; }
+code { background: var(--bg-2); padding: 1px 5px; border-radius: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.muted { color: var(--muted); }
+.hint { color: var(--muted); font-size: 12.5px; }
+.grow { flex: 1; min-width: 0; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: var(--panel); cursor: pointer; white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, transform 0.06s;
+}
+.btn:hover { border-color: var(--ink-2); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn.small { padding: 2px 10px; font-size: 12.5px; }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.btn.primary:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.danger { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.btn.danger:not(.ghost):hover { background: var(--accent); color: var(--accent-ink); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--ink); border-color: var(--line-2); }
+.link-btn { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-size: 13px; }
+.link-btn:hover { text-decoration: underline; }
+.icon-btn {
+  width: 28px; height: 28px; border: 0; border-radius: var(--radius); background: transparent;
+  font-size: 20px; line-height: 1; color: var(--muted); cursor: pointer;
+}
+.icon-btn:hover { background: var(--bg-2); color: var(--ink); }
+
+.input {
+  padding: 6px 10px; border: 1px solid var(--line-2); border-radius: var(--radius);
+  background: var(--panel); min-width: 0;
+}
+.input:focus { outline: none; border-color: var(--ink-2); box-shadow: 0 0 0 3px var(--accent-soft); }
+.input.bare { border-color: transparent; background: transparent; padding-left: 0; }
+.input.bare:focus { box-shadow: none; border-bottom-color: var(--line-2); border-radius: 0; }
+.input.area { width: 100%; min-height: 220px; resize: vertical; line-height: 1.7; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.field > .input, .field > textarea { color: var(--ink); font-size: 14px; }
+.field.inline { flex-direction: row; align-items: center; gap: 8px; }
+.field-row { display: flex; justify-content: space-between; align-items: center; }
+
+.pill {
+  display: inline-flex; align-items: center; padding: 0 8px; height: 20px; border-radius: 10px;
+  font-size: 12px; white-space: nowrap; font-weight: 500;
+}
+.pill.inferred { background: transparent !important; border: 1px dashed currentColor; }
+.tag {
+  font-size: 11.5px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 3px;
+  color: var(--muted); white-space: nowrap;
+}
+.tone-active { color: var(--t-active); background: var(--t-active-bg); }
+.tone-done { color: var(--t-done); background: var(--t-done-bg); }
+.tone-plan { color: var(--t-plan); background: var(--t-plan-bg); }
+.tone-wait { color: var(--t-wait); background: var(--t-wait-bg); }
+.tone-muted { color: var(--t-muted); background: var(--t-muted-bg); }
+.tone-high { color: var(--t-active); background: var(--t-active-bg); }
+.tone-medium { color: var(--t-wait); background: var(--t-wait-bg); }
+.tone-low { color: var(--t-muted); background: var(--t-muted-bg); }
+
+.progress { display: inline-flex; align-items: center; gap: 8px; min-width: 96px; }
+.progress-track { flex: 1; height: 5px; background: var(--bg-2); border-radius: 3px; overflow: hidden; min-width: 48px; }
+.progress-fill { display: block; height: 100%; background: var(--t-active); border-radius: 3px; transition: width 0.3s; }
+.progress.complete .progress-fill { background: var(--t-done); }
+.progress-num { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 34px; text-align: right; }
+.progress.wide { min-width: 240px; }
+.progress-empty { font-size: 12px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

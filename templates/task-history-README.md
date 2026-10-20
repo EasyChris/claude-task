@@ -12,6 +12,9 @@ docs/
 │       ├── index.md               # 当日任务索引
 │       ├── task-NN.md             # 单个任务详情
 │       └── assets/                # 截图等附件（task 里用相对路径引用）
+├── backlog/                       # 规划队列（以后要做的事，Web 上可以加、排序、贴图）
+│   ├── NN-标题.md                 # 一条规划
+│   └── assets/                    # 规划里贴的图，命名 bl-NN-序号.png
 └── task-history/                  # 月度索引
     ├── README.md                  # 本文件
     └── YYYY-MM/index.md           # 当月所有任务，一行一个
@@ -24,6 +27,7 @@ docs/
 | 当日任务索引 | `docs/tasks/YYYY-MM-DD/index.md` | 每天第一次会话时创建 |
 | 单个任务详情 | `docs/tasks/YYYY-MM-DD/task-NN.md` | 计划确认后、写代码前创建 |
 | 月度任务索引 | `docs/task-history/YYYY-MM/index.md` | 任务完成后追加一行；当月第一个任务时新建文件夹和文件 |
+| 规划 | `docs/backlog/NN-标题.md` | {{name}} 说「以后再做」「先记下来」时；或 {{name}} 在 Web 上添加 |
 
 - `NN` 两位数，当天从 01 往上编；跨天的任务记在开工那天的目录里。
 - **CLAUDE.md 不写任何任务行**，月度索引也不写踩坑细节，细节一律进 task 文件。
@@ -87,6 +91,23 @@ created: YYYY-MM-DDTHH:mm
 上线 commit、待确认这类补充信息写在当日/月度索引行里，不写进 `status`。
 
 没有 frontmatter 的旧 task 文件不用改：工具会按路径推断 `id`、按第一行标题推断 `title`、按子任务勾选情况推断进度。
+
+### backlog/NN-标题.md（规划）
+
+```markdown
+---
+title: <一句话任务标题>
+status: queued
+priority: medium        # high / medium / low
+order: 3                # 排序，越小越靠前；Web 上拖动会改它
+created: YYYY-MM-DDTHH:mm
+---
+
+<需求、背景、验收标准；图片写 ![说明](assets/bl-NN-1.png)>
+```
+
+- 开始做某条规划时：建今天的 `task-NN.md`（frontmatter 加 `from: backlog/<文件名>`，需求分析用规划正文），把 `assets/bl-NN-*` 图片搬到当天 `assets/` 并改名为 `task-NN-*`，然后删掉这条规划文件。Web 上的「开始」按钮做的就是这件事。
+- 不要手改别人正在 Web 上编辑的规划；排序只改 `order`。
 
 ### 当日 index.md
 

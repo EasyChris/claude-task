@@ -18,11 +18,11 @@ export function update(dir, opts = {}) {
     throw new UserError('CLAUDE.md 里没有 claude-task 标记块，无法安全更新；可以重新 npx claude-task init');
   }
 
+  const { memory: _dropped, ...rest } = prev; // 旧版的 memory 选项已去掉，统一用 auto memory 目录
   const cfg = {
-    ...prev,
+    ...rest,
     version: pkgVersion(),
     name: opts.name ?? prev.name,
-    memory: opts.memory ?? prev.memory,
     hooks: opts.hooks ?? prev.hooks,
   };
   const w = new Writer(root, opts);
