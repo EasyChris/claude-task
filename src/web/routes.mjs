@@ -4,6 +4,7 @@ import { resolveImage, saveImage } from './assets.mjs';
 import {
   addBacklogImage, createBacklog, deleteBacklog, getBacklog, listBacklog, reorderBacklog, updateBacklog,
 } from './backlog.mjs';
+import { annotate, approveDraft, getChat, removeChat, startRun, stopRun } from './ai/drafts.mjs';
 import { addSubtask, appendAttachment, getTask, saveContent, setStatus, toggleSubtask } from './edit.mjs';
 import { HttpError } from './fsutil.mjs';
 import { addProjects, findProject, readProjects, removeProject, scan, summarize } from './projects.mjs';
@@ -47,14 +48,28 @@ const ROUTES = [
   R('PUT', `${T}/content`, ({ root, params, json }) => withSessions(root, saveContent(root, params[1], json)), 'json'),
   R('POST', `${T}/images`, uploadTaskImage, 'raw'),
 
-  R('GET', `${P}/backlog`, ({ root }) => ({ items: listBacklog(root) })),
+  R('GET', `${P}/backlog`, ({ root }) => ({ items: annotate(root, listBacklog(root)) })),
   R('POST', `${P}/backlog`, ({ root, json }) => createBacklog(root, json), 'json'),
-  R('POST', `${P}/backlog/reorder`, ({ root, json }) => ({ items: reorderBacklog(root, json.ids) }), 'json'),
+  R('POST', `${P}/backlog/reorder`, ({ root, json }) => ({ items: annotate(root, reorderBacklog(root, json.ids)) }), 'json'),
   R('GET', B, ({ root, params }) => getBacklog(root, params[1])),
   R('PUT', B, ({ root, params, json }) => updateBacklog(root, params[1], json), 'json'),
-  R('DELETE', B, ({ root, params }) => ({ items: deleteBacklog(root, params[1]) })),
+  R('DELETE', B, ({ root, params }) => {
+    removeChat(root, params[1]);
+    return { items: annotate(root, deleteBacklog(root, params[1])) };
+  }),
   R('POST', `${B}/images`, ({ root, params, raw, type }) => addBacklogImage(root, params[1], raw, type), 'raw'),
-  R('POST', `${B}/start`, ({ root, params }) => startBacklog(root, params[1])),
+  R('POST', `${B}/start`, ({ root, params }) => {
+    const out = startBacklog(root, params[1]);
+    removeChat(root, params[1]);
+    return out;
+  }),
+  // AI 整理：进度通过 SSE 的 ai 事件推给页面
+  R('GET', `${B}/chat`, ({ root, params }) => getChat(root, params[1])),
+  R('POST', `${B}/ai`, ({ root, params, json, ctx }) => startRun(root, params[1], json, {
+    emit: (kind, data) => ctx.broadcast('ai', { project: params[0], id: params[1], kind, ...data }),
+  }), 'json'),
+  R('POST', `${B}/ai/stop`, ({ root, params }) => stopRun(root, params[1])),
+  R('POST', `${B}/approve`, ({ root, params }) => approveDraft(root, params[1])),
 
   R('GET', `${P}/sessions`, ({ root }) => ({ sessions: listSessions(root) })),
   R('GET', `${P}/session`, ({ root, url }) => getSession(root, url.searchParams.get('name'))),

@@ -16,7 +16,7 @@
     "node": ">=18.3"
   },
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/*.test.mjs",
     "build:web": "vite build --config web/vite.config.mjs"
   },
   "keywords": [

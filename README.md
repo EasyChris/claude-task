@@ -26,7 +26,8 @@ npx github:EasyChris/claude-task web       # 打开本地 Web 看板
 - 总览：所有项目的进行中 / 排队 / 本月完成，跨项目的进行中任务
 - 看板：规划 / 进行中 / 已完成三列，拖动卡片就是改状态
 - 任务详情：直接勾子任务、加子任务、改状态、⌘V 贴图；「编辑原文」保存前会比对，Claude 同时改过就弹冲突框
-- 规划：添加以后要做的事、拖动排序、贴图；「开始」会转成今天的 task 文件。新开 Claude 会话时 hook 会把队列前 5 条带给 Claude
+- 规划：分成「草稿」和「待执行队列」。新建任务时贴需求、贴图，点「AI 整理」：第一轮一次性整理成需求分析 / 子任务 / 验收标准，拿不准的列成待确认问题；可以回答、继续对话或手改，确认后进队列。新开 Claude 会话时 hook 会把队列前 5 条带给 Claude，已确认的计划直接开工
+- AI 整理调用本机的 `claude -p`（用你的 Claude Code 登录和额度），只开 Read / Grep / Glob，不加载项目的 hooks 和 MCP，`.env`、密钥类文件拒读
 - 历史（按月份、搜正文）、会话记录（只读）
 - 扫描目录：把已有 `docs/tasks` 的旧项目加进来，旧格式直接兼容，不改文件
 
@@ -64,7 +65,9 @@ npx github:EasyChris/claude-task init -y --name 你的称呼 --intro "项目介�
 ├── .claude/
 │   ├── claude-task.json        # 配置（称呼、是否装 hooks、提醒间隔）
 │   ├── settings.json           # 只增删 claude-task 自己的 hooks，其他配置保留
-│   └── hooks/claude-task.mjs   # hook 脚本，本地运行，不联网
+│   └── hooks/
+│       ├── claude-task.mjs         # hook 脚本，本地运行，不联网
+│       └── claude-task-memdir.mjs  # 算 auto memory 目录（hook 和 CLI 共用）
 └── docs/
     ├── task-history/README.md
     ├── task-history/YYYY-MM/index.md

@@ -36,6 +36,9 @@ function readItem(root, name) {
     priority: PRIORITIES.includes(data?.priority) ? data.priority : 'medium',
     order: Number(data?.order) || Number(num),
     created: data?.created || '',
+    // draft = 草稿（还没确认）；queued = 待执行队列，approved 表示计划已经在 Web 上确认过
+    status: data?.status === 'draft' ? 'draft' : 'queued',
+    approved: data?.approved === 'true',
     body: body.replace(/^\s*\n/, '').trimEnd(),
     images: (body.match(/!\[[^\]]*\]\([^)]+\)/g) || []).length,
     hash: itemHash(text),
@@ -59,7 +62,7 @@ const checkPriority = (p) => {
   if (p !== undefined && !PRIORITIES.includes(p)) throw new HttpError(400, '优先级只能是 high / medium / low');
 };
 
-export function createBacklog(root, { title, priority = 'medium', body = '' }) {
+export function createBacklog(root, { title, priority = 'medium', body = '', draft = false }) {
   const t = cleanTitle(title);
   if (!t) throw new HttpError(400, '标题不能为空');
   checkPriority(priority);
@@ -67,7 +70,7 @@ export function createBacklog(root, { title, priority = 'medium', body = '' }) {
   const nums = safeReaddir(backlogDir(root)).map((f) => Number(FILE_RE.exec(f)?.[1] || 0));
   const num = pad2(Math.max(0, ...nums) + 1);
   const order = Math.max(0, ...items.map((i) => i.order)) + 1;
-  const text = setFrontmatter(`${String(body).trim()}\n`, { title: t, status: 'queued', priority, order, created: nowStamp() });
+  const text = setFrontmatter(`${String(body).trim()}\n`, { title: t, status: draft ? 'draft' : 'queued', priority, order, created: nowStamp() });
   const name = `${num}-${slugify(t)}.md`;
   writeAtomic(path.join(backlogDir(root), name), text);
   return readItem(root, name);

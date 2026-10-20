@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveMemoryDir } from '../templates/hook.mjs';
+import { resolveMemoryDir } from '../templates/claude-task-memdir.mjs';
 
 export const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BLOCK_START = '<!-- claude-task:start';

@@ -39,7 +39,7 @@ grep -rn "关键词" docs/task-history/ docs/tasks/
 ## 接到任务后的顺序（禁止跳步）
 
 1. 分析需求，搜相关历史任务，列编号步骤的计划。
-2. **等 {{name}} 确认计划**。
+2. **等 {{name}} 确认计划**。从规划队列取的、frontmatter 有 `approved: true` 的，计划已在 Web 上确认过，跳过这一步，直接开工并说一句。
 3. 确认后先建 `docs/tasks/YYYY-MM-DD/task-NN.md`（frontmatter `status: in_progress` + 需求分析 + 全部子任务 `[ ]`），并在当日 `index.md` 加一行。
 4. 再开始写代码；每完成一个子任务就把 `[ ]` 改成 `[x]`。
 5. 全部完成后把 frontmatter 的 `status` 改成 `done`，补齐 task 文件的「总结 / 踩坑记录 / 后续 session 注意」。

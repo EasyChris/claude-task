@@ -97,7 +97,8 @@ created: YYYY-MM-DDTHH:mm
 ```markdown
 ---
 title: <一句话任务标题>
-status: queued
+status: queued          # draft = 草稿（还在整理）；queued = 待执行队列
+approved: true          # 计划已在 Web 上确认；开工不用再等确认
 priority: medium        # high / medium / low
 order: 3                # 排序，越小越靠前；Web 上拖动会改它
 created: YYYY-MM-DDTHH:mm

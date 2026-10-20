@@ -2,6 +2,19 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { get } from './api.js';
 
 // 实时同步：服务端监听文件变化，通过 SSE 告诉页面「哪个项目变了」
+// AI 整理的进度事件不进 React 状态，组件按需订阅
+const aiListeners = new Set();
+
+export function useAiEvents(fn) {
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => {
+    const h = (d) => ref.current(d);
+    aiListeners.add(h);
+    return () => aiListeners.delete(h);
+  }, []);
+}
+
 export const LiveContext = createContext({ versions: {}, projects: 0, connected: false });
 
 export function useLiveProvider() {
@@ -13,6 +26,10 @@ export function useLiveProvider() {
     es.addEventListener('change', (e) => {
       const { project } = JSON.parse(e.data);
       setState((s) => ({ ...s, versions: { ...s.versions, [project]: (s.versions[project] || 0) + 1 } }));
+    });
+    es.addEventListener('ai', (e) => {
+      const d = JSON.parse(e.data);
+      aiListeners.forEach((fn) => fn(d));
     });
     es.addEventListener('projects', () => setState((s) => ({ ...s, projects: s.projects + 1 })));
     return () => es.close();

@@ -4,11 +4,12 @@
 //   MEMORY.md 由 Claude Code 的 auto memory 自己加载（前 200 行或 25KB），这里不重复注入。
 // user-prompt-submit：每隔 reminderMinutes 分钟提醒一次写会话记录。
 // 任何异常都静默结束，不能卡住 Claude Code。
-// resolveMemoryDir 也给 CLI 用，保证两边算出同一个记忆目录。
+// 记忆目录的算法在同目录的 claude-task-memdir.mjs，CLI 也用它，保证两边算出同一个目录。
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveMemoryDir } from './claude-task-memdir.mjs';
 
 const MAX = { session: 3000, today: 1500 };
 const STATE_DIR = process.env.CLAUDE_TASK_STATE_DIR || path.join(os.tmpdir(), 'claude-task-state');
@@ -36,38 +37,6 @@ function readText(file, max) {
   } catch {
     return null;
   }
-}
-
-// 与 Claude Code 一致：子目录、worktree 都归到主仓库根；不在 git 仓库里就用项目根
-export function repoRoot(dir) {
-  for (let d = dir; ; d = path.dirname(d)) {
-    const git = path.join(d, '.git');
-    try {
-      if (fs.statSync(git).isDirectory()) return d;
-      // worktree 的 .git 是文件：gitdir 指向 <主仓库>/.git/worktrees/<名字>，commondir 指回 <主仓库>/.git
-      const gitdir = path.resolve(d, /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(git, 'utf8'))[1].trim());
-      const common = fs.readFileSync(path.join(gitdir, 'commondir'), 'utf8').trim();
-      return fs.realpathSync(path.dirname(path.resolve(gitdir, common)));
-    } catch {
-      if (fs.existsSync(git)) return d; // submodule 等没有 commondir 的情况，当成独立仓库
-    }
-    if (path.dirname(d) === d) return dir;
-  }
-}
-
-// 记忆目录：settings 里的 autoMemoryDirectory（local > project > user）优先，否则按主仓库根算
-export function resolveMemoryDir(root) {
-  const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-  const files = [
-    path.join(root, '.claude', 'settings.local.json'),
-    path.join(root, '.claude', 'settings.json'),
-    path.join(configDir, 'settings.json'),
-  ];
-  for (const f of files) {
-    const v = readJSONSafe(f)?.autoMemoryDirectory;
-    if (typeof v === 'string' && v.trim()) return path.resolve(root, v.trim().replace(/^~(?=$|[\\/])/, os.homedir()));
-  }
-  return path.join(configDir, 'projects', repoRoot(root).replace(/[^a-zA-Z0-9]/g, '-'), 'memory');
 }
 
 // 文件名是 YYYY-MM-DD-NN，按名字排就是时间顺序；改过的旧记录不会被当成最新
@@ -120,10 +89,10 @@ function backlogQueue(root, max = 5) {
   const items = files.map((f) => {
     const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(readText(path.join(dir, f), 2000) || '')?.[1] || '';
     const get = (k) => new RegExp(`^${k}:\\s*(.*)$`, 'm').exec(fm)?.[1]?.replace(/^"(.*)"$/, '$1').trim();
-    return { f, title: get('title') || f.slice(0, -3), priority: get('priority') || 'medium', order: Number(get('order')) || 1e9 };
-  }).sort((a, b) => a.order - b.order || a.f.localeCompare(b.f));
+    return { f, title: get('title') || f.slice(0, -3), priority: get('priority') || 'medium', order: Number(get('order')) || 1e9, draft: get('status') === 'draft', ok: get('approved') === 'true' };
+  }).filter((x) => !x.draft).sort((a, b) => a.order - b.order || a.f.localeCompare(b.f));
   const tag = { high: '🔴', medium: '🟡', low: '⚪' };
-  return { total: items.length, lines: items.slice(0, max).map((x, i) => `${i + 1}. ${tag[x.priority] || ''} ${x.title}（docs/backlog/${x.f}）`) };
+  return { total: items.length, lines: items.slice(0, max).map((x, i) => `${i + 1}. ${tag[x.priority] || ''} ${x.title}${x.ok ? '（计划已确认）' : ''}（docs/backlog/${x.f}）`) };
 }
 
 function sessionStart(input, root, cfg) {
@@ -149,7 +118,7 @@ function sessionStart(input, root, cfg) {
   if (queue.total) {
     const more = queue.total > queue.lines.length ? `\n…共 ${queue.total} 条` : '';
     out.push(`\n## 规划队列（Web 上排好的顺序）\n${queue.lines.join('\n')}${more}`
-      + `\n汇报完问 ${cfg.name || '用户'}：要不要先做第 1 条？做的话先把它转成今天的 task 文件（或让 ${cfg.name || '用户'} 在 Web 上点「开始」）。`);
+      + `\n汇报完问 ${cfg.name || '用户'}：要不要先做第 1 条？做的话把它转成今天的 task 文件；标了「计划已确认」的不用再等确认，直接开工并说一句。`);
   }
   if (input.source === 'compact') {
     out.push('\n[claude-task] 上下文刚被压缩：先根据摘要把本次会话进展写进/更新会话记录，再继续。');

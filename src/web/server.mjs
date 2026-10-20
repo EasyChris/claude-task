@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import http from 'node:http';
 import path from 'node:path';
 import { PKG_ROOT } from '../util.mjs';
+import { stopAll } from './ai/drafts.mjs';
 import { HttpError } from './fsutil.mjs';
 import { COOKIE, hostAllowed, parseCookies, read, sameToken, sendFile, sendJSON, sendStatic } from './httputil.mjs';
 import { readProjects } from './projects.mjs';
@@ -22,6 +23,7 @@ export function createServer({ token = crypto.randomBytes(24).toString('base64ur
   };
   const watcher = new Watcher((id) => broadcast('change', { project: id }));
   const ctx = {
+    broadcast,
     refreshWatch() {
       try {
         watcher.sync(readProjects());
@@ -115,6 +117,7 @@ export function createServer({ token = crypto.randomBytes(24).toString('base64ur
       return port;
     },
     close() {
+      stopAll();
       watcher.close();
       for (const res of clients) res.end();
       clients.clear();

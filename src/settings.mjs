@@ -1,5 +1,7 @@
 // 合并 .claude/settings.json 里的 hooks：只增删 claude-task 自己的条目，别的原样保留
 export const HOOK_SCRIPT = '.claude/hooks/claude-task.mjs';
+// hook 依赖的记忆目录算法，和 hook 放在一起，跟着 hook 一起装/删
+export const MEMDIR_SCRIPT = '.claude/hooks/claude-task-memdir.mjs';
 
 const EVENTS = {
   SessionStart: 'session-start',

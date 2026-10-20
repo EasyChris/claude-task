@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { mergeHooks, HOOK_SCRIPT } from './settings.mjs';
+import { mergeHooks, HOOK_SCRIPT, MEMDIR_SCRIPT } from './settings.mjs';
 import { MANAGED, localDate, memoryDir, memoryDirDisplay, pkgVersion, readJSON, readTemplate, render } from './util.mjs';
 
 export const CONFIG_FILE = path.join('.claude', 'claude-task.json');
@@ -28,9 +28,10 @@ export function writeManaged(root, cfg, w) {
 
   w.write(path.join(root, CONFIG_FILE), JSON.stringify(cfg, null, 2) + '\n', { overwrite: true });
 
-  const hookFile = path.join(root, HOOK_SCRIPT);
-  if (cfg.hooks) w.write(hookFile, readTemplate('hook.mjs'), { overwrite: true });
-  else w.remove(hookFile);
+  for (const [file, tpl] of [[HOOK_SCRIPT, 'hook.mjs'], [MEMDIR_SCRIPT, 'claude-task-memdir.mjs']]) {
+    if (cfg.hooks) w.write(path.join(root, file), readTemplate(tpl), { overwrite: true });
+    else w.remove(path.join(root, file));
+  }
   if (settings || cfg.hooks) {
     w.write(settingsFile, JSON.stringify(mergeHooks(settings, cfg.hooks), null, 2) + '\n', { overwrite: true });
   }

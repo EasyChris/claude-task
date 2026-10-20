@@ -7,7 +7,7 @@ import { beforeEach, test } from 'node:test';
 import { init } from '../src/init.mjs';
 import { mergeHooks } from '../src/settings.mjs';
 import { update } from '../src/update.mjs';
-import { PKG_ROOT, localDate, memoryDir, projectSlug } from '../src/util.mjs';
+import { PKG_ROOT, localDate, projectSlug } from '../src/util.mjs';
 
 let root;
 let home;
@@ -18,6 +18,8 @@ beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'ct-proj-'));
   process.env.CLAUDE_CONFIG_DIR = path.join(home, '.claude');
   process.env.CLAUDE_TASK_HOME = path.join(home, '.claude-task');
+  process.env.CLAUDE_TASK_MANAGED_DIR = path.join(home, 'managed'); // 不读本机真实的 managed 设置
+  delete process.env.CLAUDE_CODE_PROJECT_DIR_NAME;
 });
 
 const read = (...p) => fs.readFileSync(path.join(root, ...p), 'utf8');
@@ -46,6 +48,7 @@ test('init 在空项目里生成全部文件', async () => {
   assert.ok(exists('docs', 'task-history', month, 'index.md'));
   assert.match(read('docs', 'task-history', 'README.md'), /等 Easy 确认/);
   assert.ok(exists('.claude', 'hooks', 'claude-task.mjs'));
+  assert.ok(exists('.claude', 'hooks', 'claude-task-memdir.mjs'));
   assert.match(fs.readFileSync(path.join(memDir(), 'MEMORY.md'), 'utf8'), /\]\(sessions\//);
   assert.ok(fs.existsSync(path.join(memDir(), 'sessions')));
   const settings = JSON.parse(read('.claude', 'settings.json'));
@@ -109,6 +112,7 @@ test('--no-hooks 时 update 删掉 hook 脚本和 settings 条目，保留别人
   s = JSON.parse(read('.claude', 'settings.json'));
   assert.deepEqual(s, { permissions: { allow: ['Bash(ls)'] }, hooks: { SessionStart: [{ hooks: [other] }] } });
   assert.ok(!exists('.claude', 'hooks', 'claude-task.mjs'));
+  assert.ok(!exists('.claude', 'hooks', 'claude-task-memdir.mjs'));
   assert.doesNotMatch(read('CLAUDE.md'), /已装 hooks/);
 });
 
@@ -137,22 +141,6 @@ test('update 去掉旧配置里的 memory 字段', async () => {
   fs.writeFileSync(cfgFile, JSON.stringify({ ...JSON.parse(read('.claude', 'claude-task.json')), memory: 'home' }));
   update(root, {});
   assert.equal(JSON.parse(read('.claude', 'claude-task.json')).memory, undefined);
-});
-
-test('记忆目录与 auto memory 一致：worktree 和子目录归到主仓库，autoMemoryDirectory 优先', () => {
-  const main = path.join(fs.realpathSync(root), 'main');
-  fs.mkdirSync(path.join(main, 'sub'), { recursive: true });
-  const git = (...a) => execFileSync('git', a, { cwd: main, stdio: 'ignore' });
-  git('init', '-q');
-  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init');
-  git('worktree', 'add', '-q', '../wt', '-b', 'wt');
-  const expected = path.join(home, '.claude', 'projects', projectSlug(main), 'memory');
-  assert.equal(memoryDir(main), expected);
-  assert.equal(memoryDir(path.join(main, 'sub')), expected);
-  assert.equal(memoryDir(path.join(fs.realpathSync(root), 'wt')), expected);
-  fs.mkdirSync(path.join(main, '.claude'));
-  fs.writeFileSync(path.join(main, '.claude', 'settings.json'), JSON.stringify({ autoMemoryDirectory: '~/my-mem' }));
-  assert.equal(memoryDir(main), path.join(os.homedir(), 'my-mem'));
 });
 
 function runHook(mode, input, env = {}) {

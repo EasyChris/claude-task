@@ -4,6 +4,7 @@ import Backlog from './pages/Backlog.jsx';
 import Board from './pages/Board.jsx';
 import History from './pages/History.jsx';
 import Sessions from './pages/Sessions.jsx';
+import DraftView from './pages/DraftView.jsx';
 import TaskDetail from './pages/TaskDetail.jsx';
 import { Link, navigate, projectPath } from './router.jsx';
 import { KIND } from './status.js';
@@ -50,12 +51,13 @@ export default function ProjectView({ project, route, search, version, onRemoved
 
   let page;
   if (route.name === 'task') page = <TaskDetail pid={pid} id={route.taskId} version={version} />;
+  else if (route.name === 'draft') page = <DraftView pid={pid} id={route.draftId} version={version} />;
   else if (route.name === 'backlog') page = <Backlog pid={pid} version={version} />;
   else if (route.name === 'history') page = <History pid={pid} version={version} search={search} />;
   else if (route.name === 'sessions') page = <Sessions pid={pid} version={version} search={search} />;
   else page = <Board pid={pid} version={version} />;
 
-  const tab = route.name === 'task' ? null : route.name;
+  const tab = route.name === 'task' ? null : route.name === 'draft' ? 'backlog' : route.name;
   const backlogCount = project.counts?.backlog || 0;
 
   return (
