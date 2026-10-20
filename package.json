@@ -1,0 +1,31 @@
+{
+  "name": "claude-task",
+  "version": "0.1.0",
+  "description": "一键给项目装上 Claude Code 任务记录 + 记忆工作流（CLAUDE.md、docs/tasks、memory、hooks）",
+  "type": "module",
+  "bin": {
+    "claude-task": "bin/claude-task.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=18.3"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "claude-md",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EasyChris/claude-task.git"
+  },
+  "license": "MIT"
+}
