@@ -158,10 +158,19 @@ test('规划：新建、排序、开始 → 今天的 task 文件 + 图片搬过
   assert.deepEqual((await api('GET', `/api/p/${pid}/backlog`)).items.map((i) => i.title), ['写文档']);
 });
 
-test('扫描目录只读，能找到项目', async () => {
-  const before2 = fs.readdirSync(root).sort();
-  const out = await api('GET', `/api/scan?dir=${encodeURIComponent(path.dirname(root))}`);
-  const me = out.projects.find((p) => p.path === root);
-  assert.equal(me.registered, true);
-  assert.deepEqual(fs.readdirSync(root).sort(), before2);
+test('扫描目录只读，能找到项目，旧版工作流标出需要迁移', async () => {
+  const md = path.join(root, 'CLAUDE.md');
+  fs.writeFileSync(md, '## ⚡ 会话开始流程\n\n1. 读记忆\n');
+  try {
+    const before2 = fs.readdirSync(root).sort();
+    const out = await api('GET', `/api/scan?dir=${encodeURIComponent(path.dirname(root))}`);
+    const me = out.projects.find((p) => p.path === root);
+    assert.equal(me.registered, true);
+    assert.equal(me.kind, 'split'); // 有 docs/task-history 的旧流程
+    assert.equal(me.migrate, true);
+    assert.equal((await api('GET', '/api/projects')).projects[0].migrate, true);
+    assert.deepEqual(fs.readdirSync(root).sort(), before2);
+  } finally {
+    fs.rmSync(md);
+  }
 });

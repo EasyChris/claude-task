@@ -11,19 +11,27 @@ export class Writer {
     this.root = root;
     this.dryRun = dryRun;
     this.log = [];
+    this.planned = new Map(); // dry-run 时也记住「已经写过」的内容，后面的步骤读到的是计划后的样子
+  }
+
+  // 读文件当前（或本次计划写入后）的内容；不存在返回 null
+  read(file) {
+    if (this.planned.has(file)) return this.planned.get(file);
+    return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
   }
 
   write(file, content, { overwrite = false } = {}) {
-    const exists = fs.existsSync(file);
-    if (exists) {
-      if (fs.readFileSync(file, 'utf8') === content) return this.record('unchanged', file);
+    const old = this.read(file);
+    if (old !== null) {
+      if (old === content) return this.record('unchanged', file);
       if (!overwrite) return this.record('skipped', file);
     }
     if (!this.dryRun) {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, content);
     }
-    return this.record(exists ? 'updated' : 'created', file);
+    this.planned.set(file, content);
+    return this.record(old !== null ? 'updated' : 'created', file);
   }
 
   mkdir(dir) {
@@ -38,8 +46,11 @@ export class Writer {
     return this.record('removed', file);
   }
 
+  // 同一个文件写了多次只留一条：后面的「未改 / 跳过」不覆盖前面真正的创建或修改
   record(status, file) {
-    this.log.push({ status, file });
+    const prev = this.log.find((e) => e.file === file);
+    if (!prev) this.log.push({ status, file });
+    else if (!['unchanged', 'skipped'].includes(status) && prev.status !== 'created') prev.status = status;
     return status;
   }
 

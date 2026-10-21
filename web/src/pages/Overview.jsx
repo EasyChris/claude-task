@@ -40,7 +40,9 @@ export default function Overview({ projects, onScan }) {
           <Link key={p.id} to={projectPath(p.id)} className={`pcard${p.missing ? ' missing' : ''}`}>
             <div className="pcard-head">
               <span className="pcard-name">{p.name}</span>
-              {p.kind && <span className="tag">{KIND[p.kind]}</span>}
+              {p.migrate
+                ? <span className="pill tone-wait" title="在项目页能复制迁移命令">需要迁移</span>
+                : p.kind && <span className="tag">{KIND[p.kind]}</span>}
             </div>
             {p.missing ? (
               <p className="muted">目录不存在了</p>

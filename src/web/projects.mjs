@@ -1,10 +1,11 @@
 // 多项目：读写 ~/.claude-task/projects.json、扫描目录找旧项目、总览页的统计
 import fs from 'node:fs';
 import path from 'node:path';
+import { needsMigrate, projectKind } from '../claudemd.mjs';
 import { assignIds, registryFile, sortProjects } from '../registry.mjs';
 import { localDate, readJSON, resolveRoot, tildify } from '../util.mjs';
 import { listBacklog } from './backlog.mjs';
-import { HttpError, expandHome, readTextOr, safeReaddir, writeAtomic } from './fsutil.mjs';
+import { HttpError, expandHome, safeReaddir, writeAtomic } from './fsutil.mjs';
 import { DAY_RE, TASK_FILE_RE, listTasks } from './tasks.mjs';
 
 function readRegistry() {
@@ -51,9 +52,10 @@ export function removeProject(id) {
   save(list.filter((p) => p.id !== id));
 }
 
+// 接入情况 + 要不要 migrate，扫描结果和总览卡片都带上
 function kindOf(root) {
-  if (readTextOr(path.join(root, 'CLAUDE.md'), '').includes('<!-- claude-task:start')) return 'claude-task';
-  return fs.existsSync(path.join(root, 'docs', 'task-history')) ? 'split' : 'legacy';
+  const kind = projectKind(root);
+  return { kind, migrate: needsMigrate(kind) };
 }
 
 function countTasks(root) {
@@ -74,7 +76,7 @@ export function scan(dir) {
   const found = [];
   const visit = (d, depth) => {
     if (fs.existsSync(path.join(d, 'docs', 'tasks'))) {
-      found.push({ path: d, display: tildify(d), name: path.basename(d), tasks: countTasks(d), kind: kindOf(d), registered: registered.has(d) });
+      found.push({ path: d, display: tildify(d), name: path.basename(d), tasks: countTasks(d), ...kindOf(d), registered: registered.has(d) });
       return;
     }
     if (depth >= 2) return;
@@ -100,7 +102,7 @@ export function summarize(p) {
   const active = tasks.filter((t) => t.status === 'in_progress' && !t.stale);
   return {
     ...base,
-    kind: kindOf(p.path),
+    ...kindOf(p.path),
     counts: {
       active: active.length,
       waiting: tasks.filter((t) => WAITING.includes(t.status)).length,

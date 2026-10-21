@@ -16,7 +16,7 @@ export async function init(dir, opts = {}) {
   if (md && isLegacyWorkflow(md)) {
     throw new UserError(
       'CLAUDE.md 是旧版工作流（有「会话开始流程」但没有 claude-task 标记），直接 init 会出现两套流程。\n'
-      + '旧项目请等 `claude-task migrate`（开发中）。',
+      + '旧项目请在项目目录里运行 `npx claude-task migrate`（默认只预览，加 --yes 才写入）。',
     );
   }
 

@@ -7,6 +7,7 @@ import Sessions from './pages/Sessions.jsx';
 import DraftView from './pages/DraftView.jsx';
 import TaskDetail from './pages/TaskDetail.jsx';
 import { Link, navigate, projectPath } from './router.jsx';
+import MigrateHint from './MigrateHint.jsx';
 import { KIND } from './status.js';
 import { ErrorBox, useToast } from './ui.jsx';
 
@@ -68,6 +69,7 @@ export default function ProjectView({ project, route, search, version, onRemoved
           <span className="project-path mono" title={project.path}>{project.path}</span>
           {project.kind && <span className="tag">{KIND[project.kind]}</span>}
         </div>
+        {project.migrate && <MigrateHint dir={project.path} />}
         <div className="project-bar">
           <nav className="tabs" aria-label="项目页面">
             {TABS.map(([k, label]) => (

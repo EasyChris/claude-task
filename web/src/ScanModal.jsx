@@ -44,6 +44,7 @@ export default function ScanModal({ onClose, onAdded }) {
   };
 
   const candidates = result?.projects.filter((p) => !p.registered) || [];
+  const toMigrate = result?.projects.filter((p) => p.migrate).length || 0;
 
   return (
     <Modal
@@ -73,6 +74,7 @@ export default function ScanModal({ onClose, onAdded }) {
           <div className="scan-summary">
             <span>
               在 <span className="mono">{result.dir}</span> 下找到 {result.projects.length} 个有 docs/tasks 的项目
+              {toMigrate > 0 && <>，其中 {toMigrate} 个需要迁移（加入后在项目页能复制迁移命令）</>}
             </span>
             {candidates.length > 0 && (
               <span className="scan-bulk">
@@ -90,7 +92,10 @@ export default function ScanModal({ onClose, onAdded }) {
                     : <input type="checkbox" checked={picked.has(p.path)} onChange={() => toggle(p.path)} />}
                   <span className="scan-name">{p.name}</span>
                   <span className="scan-count mono">{p.tasks} 个任务</span>
-                  <span className="tag">{p.registered ? '已在列表里' : KIND[p.kind]}</span>
+                  <span className="scan-tags">
+                    {p.migrate && <span className="pill tone-wait">需要迁移</span>}
+                    <span className="tag">{p.registered ? '已在列表里' : KIND[p.kind]}</span>
+                  </span>
                   <span className="scan-path mono">{p.display}</span>
                 </label>
               </li>

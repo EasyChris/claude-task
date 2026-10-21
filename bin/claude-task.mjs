@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { init } from '../src/init.mjs';
+import { migrate } from '../src/migrate/index.mjs';
+import { migrateReport } from '../src/migrate/report.mjs';
 import { update } from '../src/update.mjs';
 import { UserError, memoryDirDisplay, pkgVersion, resolveRoot } from '../src/util.mjs';
 
@@ -9,6 +11,7 @@ const HELP = `claude-task ${pkgVersion()} — 给项目装上 Claude Code 任务
 用法：
   npx claude-task init     在当前目录初始化（CLAUDE.md、docs/tasks、记忆目录、hooks）
   npx claude-task update   模板升级后刷新流程块和 hooks，自定义内容不动
+  npx claude-task migrate  旧版 CLAUDE.md 迁移到 claude-task（默认只预览，加 --yes 才写入；一次一个项目）
   npx claude-task web      打开本地 Web 看板（所有项目共用一个服务，已在运行就直接打开）
 
 选项：
@@ -16,7 +19,7 @@ const HELP = `claude-task ${pkgVersion()} — 给项目装上 Claude Code 任务
   --intro <文字>           项目介绍（仅新建 CLAUDE.md 时使用）
   --features <a,b,c>       主要功能，逗号分隔（仅新建 CLAUDE.md 时使用）
   --no-hooks               不安装 hooks（--hooks 重新装上）
-  -y, --yes                不提问，没给的选项用默认值
+  -y, --yes                不提问，没给的选项用默认值；migrate：确认写入
   --dry-run                只预览要改哪些文件，不写入
   --port <端口>            web：指定端口（默认 7432，被占用就往后找）
   --no-open                web：不自动打开浏览器
@@ -64,6 +67,7 @@ async function main() {
   }
 
   const root = resolveRoot(process.cwd());
+  if (command === 'migrate') return console.log(migrateReport(migrate(root, opts)));
   let result;
   if (command === 'init') result = await init(root, opts);
   else if (command === 'update') result = update(root, opts);

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { BLOCK_END, BLOCK_START, UserError, readTemplate, render } from './util.mjs';
 
 export const PLACEHOLDER_INTRO = '<!-- 一两句话说明这个项目做什么 -->';
@@ -22,6 +24,20 @@ export function upsertBlock(text, block) {
 export function isLegacyWorkflow(text) {
   return !findBlock(text) && /会话开始流程/.test(text);
 }
+
+// 项目接入情况（CLI 和 Web 共用）：已接入 / 拆分版（有 docs/task-history 的旧流程）/ 旧版 / 未接入
+// 拆分版和旧版都需要 migrate
+export function projectKind(root) {
+  let md = '';
+  try {
+    md = fs.readFileSync(path.join(root, 'CLAUDE.md'), 'utf8');
+  } catch {}
+  if (md.includes(BLOCK_START)) return 'claude-task';
+  if (!isLegacyWorkflow(md)) return 'none';
+  return fs.existsSync(path.join(root, 'docs', 'task-history')) ? 'split' : 'legacy';
+}
+
+export const needsMigrate = (kind) => kind === 'split' || kind === 'legacy';
 
 // "a, b；c" 或多行 → markdown 列表
 export function formatFeatures(features) {

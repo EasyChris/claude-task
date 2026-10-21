@@ -23,6 +23,7 @@ export const KIND = {
   'claude-task': '已接入',
   split: '拆分版',
   legacy: '旧版（兼容读取）',
+  none: '未接入',
 };
 
 // 索引里的状态文字（可能带 `commit`），卡片上显示去掉反引号
