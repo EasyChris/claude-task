@@ -55,6 +55,7 @@ id: YYYY-MM-DD-NN
 title: <一句话任务标题>
 status: in_progress
 created: YYYY-MM-DDTHH:mm
+sessions: <会话 id>   # 做过这个任务的 Claude 会话 id，逗号分隔；hook 会告诉你本次的 id，Web 靠它显示完整对话
 ---
 
 # 任务 N: <任务标题>

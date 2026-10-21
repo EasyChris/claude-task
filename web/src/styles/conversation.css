@@ -1,0 +1,57 @@
+/* 任务详情里的会话列表 */
+.convs { margin-top: 26px; }
+.conv-list { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.conv-list li + li { border-top: 1px solid var(--line); }
+.conv-row { display: flex; align-items: center; gap: 12px; padding: 8px 14px; }
+.conv-row:hover { background: var(--bg-2); }
+.conv-when { flex: none; font-size: 12px; color: var(--muted); }
+.conv-first { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 对话页：像终端里的会话，但排版更松 */
+.conv-page { max-width: 980px; }
+.convo { display: flex; flex-direction: column; gap: 10px; }
+.c-more { align-self: center; margin-bottom: 6px; }
+.c-row { min-width: 0; }
+.c-user { display: flex; align-items: flex-end; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+.c-bubble {
+  max-width: 78%; padding: 6px 14px; background: var(--ink); color: var(--bg);
+  border-radius: 12px 12px 3px 12px; overflow-wrap: anywhere;
+}
+.c-bubble .md { line-height: 1.65; }
+.c-bubble .md p { margin: 4px 0; }
+.c-bubble .md code { background: color-mix(in srgb, var(--bg) 18%, transparent); color: inherit; }
+.c-bubble .md pre { background: color-mix(in srgb, var(--bg) 12%, transparent); color: inherit; }
+.c-bubble .md a { color: inherit; }
+.c-img { font-size: 12px; opacity: 0.8; padding: 2px 0 4px; }
+.c-time { font-size: 11px; color: var(--muted); flex: none; }
+.c-command { align-self: flex-end; font-size: 12.5px; padding: 2px 10px; border: 1px dashed var(--line-2); border-radius: 10px; color: var(--ink-2); }
+.c-text { padding: 0 4px; }
+.c-text .md p:first-child { margin-top: 2px; }
+.c-event { align-self: center; font-size: 12px; color: var(--muted); padding: 2px 12px; border-top: 1px dashed var(--line-2); border-bottom: 1px dashed var(--line-2); }
+
+.c-thinking summary, .c-tool summary { cursor: pointer; list-style: none; }
+.c-thinking summary::-webkit-details-marker, .c-tool summary::-webkit-details-marker { display: none; }
+.c-thinking summary { font-size: 12.5px; color: var(--muted); font-style: italic; padding: 0 4px; }
+.c-thinking summary::before, .c-tool summary::before { content: '▸'; display: inline-block; width: 14px; color: var(--muted); font-style: normal; }
+.c-thinking[open] summary::before, .c-tool[open] summary::before { content: '▾'; }
+.c-think-body { margin: 4px 0 0 18px; padding: 6px 12px; border-left: 2px solid var(--line-2); color: var(--ink-2); font-size: 12.5px; white-space: pre-wrap; max-height: 360px; overflow-y: auto; }
+
+.c-tool { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.c-tool summary { display: flex; align-items: center; gap: 8px; padding: 5px 10px; min-width: 0; }
+.c-tool summary:hover { background: var(--bg-2); }
+.c-tool.error { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.c-tool-name { flex: none; font-size: 12px; font-weight: 500; color: var(--t-plan); }
+.c-tool-sum { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-tool-state { flex: none; font-size: 11.5px; color: var(--t-wait); }
+.c-tool-state.err { color: var(--accent); }
+.c-tool-body { padding: 4px 12px 10px; border-top: 1px solid var(--line); }
+.c-label { font-size: 11.5px; color: var(--muted); margin: 6px 0 2px; }
+.c-tool-body pre { margin: 0; padding: 8px 10px; background: var(--bg-2); border-radius: 4px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow-y: auto; }
+.c-tool-body pre.err { color: var(--accent); }
+.conv-note { margin-top: 24px; }
+
+@media (max-width: 900px) {
+  .conv-row { flex-wrap: wrap; }
+  .conv-first { flex-basis: 100%; order: 3; }
+  .c-bubble { max-width: 92%; }
+}

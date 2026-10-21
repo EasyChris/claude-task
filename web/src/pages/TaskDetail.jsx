@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { T, api, imageResolver } from '../api.js';
+import ConversationList from '../conversation/ConversationList.jsx';
 import Attachments from '../detail/Attachments.jsx';
 import RawEditor from '../detail/RawEditor.jsx';
 import { useData } from '../hooks.js';
@@ -139,6 +140,7 @@ export default function TaskDetail({ pid, id, version }) {
           </ul>
         </section>
       )}
+      <ConversationList pid={pid} taskId={id} version={version} />
       <p className="file-path mono muted">{task.file}</p>
     </div>
   );

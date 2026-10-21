@@ -34,7 +34,9 @@ const dec = (s) => {
 };
 
 export function matchRoute(path) {
-  let m = /^\/p\/([^/]+)\/t\/([^/]+)\/?$/.exec(path);
+  let m = /^\/p\/([^/]+)\/t\/([^/]+)\/c\/([^/]+)\/?$/.exec(path);
+  if (m) return { name: 'conv', pid: dec(m[1]), taskId: dec(m[2]), sid: dec(m[3]) };
+  m = /^\/p\/([^/]+)\/t\/([^/]+)\/?$/.exec(path);
   if (m) return { name: 'task', pid: dec(m[1]), taskId: dec(m[2]) };
   m = /^\/p\/([^/]+)\/draft\/([^/]+)\/?$/.exec(path);
   if (m) return { name: 'draft', pid: dec(m[1]), draftId: dec(m[2]) };
@@ -47,6 +49,7 @@ export function matchRoute(path) {
 
 export const projectPath = (pid, tab = 'board', query = '') => `/p/${encodeURIComponent(pid)}/${tab}${query}`;
 export const draftPath = (pid, id) => `/p/${encodeURIComponent(pid)}/draft/${encodeURIComponent(id)}`;
+export const convPath = (pid, id, sid) => `/p/${encodeURIComponent(pid)}/t/${encodeURIComponent(id)}/c/${encodeURIComponent(sid)}`;
 export const taskPath = (pid, id) => `/p/${encodeURIComponent(pid)}/t/${encodeURIComponent(id)}`;
 
 export function Link({ to, children, onClick, ...rest }) {

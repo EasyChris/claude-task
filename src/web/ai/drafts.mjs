@@ -5,7 +5,7 @@ import { claudeTaskHome, projectSlug } from '../../util.mjs';
 import { backlogDir, backlogFile, getBacklog, listBacklog, updateBacklog } from '../backlog.mjs';
 import { setFrontmatter } from '../frontmatter.mjs';
 import { HttpError, writeAtomic } from '../fsutil.mjs';
-import { runClaude } from './claude.mjs';
+import { runClaude, userAuth } from './claude.mjs';
 import { claudeArgs, firstPrompt, followupPrompt, formatDraft, normalize, systemPrompt } from './prompt.mjs';
 
 const MAX_RUNS = 3;
@@ -77,10 +77,12 @@ export function startRun(root, id, { message, answers, useProject } = {}, { emit
 
   const ev = (kind, data = {}) => emit(kind, data);
   fs.mkdirSync(workDir(), { recursive: true });
+  const auth = userAuth();
   const run = runClaude({
-    args: claudeArgs({ root, system: systemPrompt({ name, root, useProject: chat.useProject }), sessionId: chat.sessionId, useProject: chat.useProject, model: process.env.CLAUDE_TASK_AI_MODEL }),
+    args: claudeArgs({ root, system: systemPrompt({ name, root, useProject: chat.useProject }), sessionId: chat.sessionId, useProject: chat.useProject, model: process.env.CLAUDE_TASK_AI_MODEL, auth }),
     input: prompt,
     cwd: workDir(),
+    env: auth.env,
     onEvent: (e) => ev(e.kind, e.kind === 'tool' ? { name: e.name, target: e.target.startsWith(`${root}/`) ? e.target.slice(root.length + 1) : e.target } : e),
   });
   runs.set(k, run);

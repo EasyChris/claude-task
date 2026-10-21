@@ -22,6 +22,11 @@ before(async () => {
   process.env.CLAUDE_TASK_CLAUDE_BIN = FAKE;
   process.env.FAKE_CLAUDE_LOG = path.join(home, 'calls.jsonl');
   fs.chmodSync(FAKE, 0o755);
+  // 登录信息写在用户 settings.json 的 env / apiKeyHelper 里（不加载用户设置时也要带上）
+  fs.mkdirSync(process.env.CLAUDE_CONFIG_DIR, { recursive: true });
+  fs.writeFileSync(path.join(process.env.CLAUDE_CONFIG_DIR, 'settings.json'), JSON.stringify({
+    env: { ANTHROPIC_BASE_URL: 'https://proxy.example.invalid' }, apiKeyHelper: 'echo test-key', hooks: { Stop: [] },
+  }));
   root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ct-ai-proj-')));
   fs.mkdirSync(path.join(root, 'docs', 'tasks'), { recursive: true });
   srv = createServer({ token: 'T', dist: path.join(home, 'no-dist') });
@@ -108,6 +113,10 @@ test('AI 整理：只开只读工具、拒读密钥、不加载项目设置，�
   assert.match(argAfter(args, '--settings'), /Read\(\*\*\/\.env\)/);
   assert.equal(argAfter(args, '--add-dir'), root);
   assert.ok(!args.includes('--resume'));
+  assert.equal(calls().at(-1).baseUrl, 'https://proxy.example.invalid');
+  const settings = JSON.parse(argAfter(args, '--settings'));
+  assert.equal(settings.apiKeyHelper, 'echo test-key');
+  assert.equal(settings.hooks, undefined);
   assert.match(input, /销售说想导出库存/);
   const list = await api('GET', `/api/p/${pid}/backlog`);
   assert.equal(list.items.find((i) => i.id === d.id).questions, 2);

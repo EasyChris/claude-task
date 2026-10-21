@@ -5,7 +5,7 @@ import fs from 'node:fs';
 
 const args = process.argv.slice(2);
 const input = fs.readFileSync(0, 'utf8');
-if (process.env.FAKE_CLAUDE_LOG) fs.appendFileSync(process.env.FAKE_CLAUDE_LOG, JSON.stringify({ args, input }) + '\n');
+if (process.env.FAKE_CLAUDE_LOG) fs.appendFileSync(process.env.FAKE_CLAUDE_LOG, JSON.stringify({ args, input, baseUrl: process.env.ANTHROPIC_BASE_URL || null }) + '\n');
 
 const k = args.indexOf('--resume');
 const resume = k >= 0 ? args[k + 1] : null;

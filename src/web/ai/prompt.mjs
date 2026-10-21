@@ -4,7 +4,7 @@ import path from 'node:path';
 export const SCHEMA = {
   type: 'object',
   properties: {
-    title: { type: 'string', description: '一句话任务标题，15~30 字，写做什么' },
+    title: { type: 'string', description: '一句话任务标题，15~30 字，直接写做什么，不要加「整理任务：」之类的前缀' },
     summary: { type: 'string', description: '需求分析：背景、要做什么、明确不做什么；markdown，可以分段' },
     subtasks: { type: 'array', items: { type: 'string' }, description: '按顺序的子任务，每条能单独完成和验证' },
     acceptance: { type: 'array', items: { type: 'string' }, description: '验收标准' },
@@ -13,7 +13,7 @@ export const SCHEMA = {
       description: '拿不准、需要用户决定的点，每个给一个建议默认值；没有就空数组',
       items: { type: 'object', properties: { q: { type: 'string' }, suggestion: { type: 'string' } }, required: ['q', 'suggestion'] },
     },
-    references: { type: 'array', items: { type: 'string' }, description: '参考过的文件或历史任务（相对项目根的路径）' },
+    references: { type: 'array', items: { type: 'string' }, description: '参考过的代码文件或历史任务（相对项目根的路径，不含 docs/backlog 里的草稿本身）' },
     reply: { type: 'string', description: '一两句话告诉用户这一轮做了什么、改了什么' },
   },
   required: ['title', 'summary', 'subtasks', 'acceptance', 'questions', 'references', 'reply'],
@@ -25,15 +25,15 @@ const SECRET_GLOBS = [
   '**/*credentials*', '**/.npmrc', '**/.netrc', '**/账号*', '**/密码*', '**/.claude/**', '**/.git/**',
 ];
 
-export function denySettings(root) {
+export function denySettings(root, extra = {}) {
   const deny = SECRET_GLOBS.flatMap((g) => ['Read', 'Grep'].flatMap((t) => [`${t}(${g})`, `${t}(/${root}/${g})`]));
-  return JSON.stringify({ permissions: { deny } });
+  return JSON.stringify({ ...extra, permissions: { deny } });
 }
 
-export function claudeArgs({ root, system, sessionId, useProject, model }) {
+export function claudeArgs({ root, system, sessionId, useProject, model, auth = {} }) {
   const args = [
     '-p', '--tools', 'Read,Grep,Glob', '--setting-sources', '', '--strict-mcp-config',
-    '--settings', denySettings(root), '--json-schema', JSON.stringify(SCHEMA), '--append-system-prompt', system,
+    '--settings', denySettings(root, auth.apiKeyHelper ? { apiKeyHelper: auth.apiKeyHelper } : {}), '--json-schema', JSON.stringify(SCHEMA), '--append-system-prompt', system,
     '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
     '--add-dir', useProject ? root : path.join(root, 'docs', 'backlog'),
   ];
@@ -79,11 +79,11 @@ const strings = (x) => (Array.isArray(x) ? x.map((s) => String(s).trim()).filter
 export function normalize(o) {
   if (!o || typeof o !== 'object' || !String(o.title || '').trim() || typeof o.summary !== 'string') return null;
   return {
-    title: String(o.title).trim().slice(0, 80),
+    title: String(o.title).trim().replace(/^(整理任务|任务|需求)\s*[:：]\s*/, '').slice(0, 80),
     summary: o.summary.trim(),
     subtasks: strings(o.subtasks),
     acceptance: strings(o.acceptance),
-    references: strings(o.references),
+    references: strings(o.references).filter((r) => !r.startsWith('docs/backlog/')),
     questions: (Array.isArray(o.questions) ? o.questions : [])
       .filter((q) => q && String(q.q || '').trim())
       .map((q) => ({ q: String(q.q).trim(), suggestion: String(q.suggestion || '').trim() })),

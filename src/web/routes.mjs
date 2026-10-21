@@ -5,6 +5,8 @@ import {
   addBacklogImage, createBacklog, deleteBacklog, getBacklog, listBacklog, reorderBacklog, updateBacklog,
 } from './backlog.mjs';
 import { annotate, approveDraft, getChat, removeChat, startRun, stopRun } from './ai/drafts.mjs';
+import { readTranscript } from './transcript.mjs';
+import { linkedSessions } from './transcriptLinks.mjs';
 import { addSubtask, appendAttachment, getTask, saveContent, setStatus, toggleSubtask } from './edit.mjs';
 import { HttpError } from './fsutil.mjs';
 import { addProjects, findProject, readProjects, removeProject, scan, summarize } from './projects.mjs';
@@ -58,6 +60,9 @@ const ROUTES = [
     return { items: annotate(root, deleteBacklog(root, params[1])) };
   }),
   R('POST', `${B}/images`, ({ root, params, raw, type }) => addBacklogImage(root, params[1], raw, type), 'raw'),
+  // 完整对话（只读）：任务关联了哪些会话、某个会话的原文（from = 上次读到的字节位置，用来实时追加）
+  R('GET', `${T}/conversations`, ({ root, params }) => ({ sessions: linkedSessions(root, getTask(root, params[1])) })),
+  R('GET', `${P}/transcripts/([^/]+)`, ({ root, params, url }) => readTranscript(root, params[1], url.searchParams.get('from'))),
   R('POST', `${B}/start`, ({ root, params }) => {
     const out = startBacklog(root, params[1]);
     removeChat(root, params[1]);

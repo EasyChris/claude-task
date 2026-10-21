@@ -109,6 +109,9 @@ function sessionStart(input, root, cfg) {
     `[claude-task] 今天是 ${day}。按 CLAUDE.md「会话开始流程」向 ${cfg.name || '用户'} 汇报，下面的内容已替你读好。`,
     `记忆目录：${mem}（MEMORY.md 由 Claude Code 自动加载，这里不重复）`,
   ];
+  if (input.session_id) {
+    out.push(`本次会话 id：${input.session_id}。新建或接着做某个 task 时，把它追加到该 task frontmatter 的 sessions 字段（逗号分隔，已有就不重复）；Web 看板靠它显示这个任务的完整对话。`);
+  }
   const last = latestSession(path.join(mem, 'sessions'));
   out.push(last
     ? `\n## 最近一份会话记录 sessions/${last}\n${readSession(path.join(mem, 'sessions', last))}`
