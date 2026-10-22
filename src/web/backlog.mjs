@@ -36,7 +36,7 @@ function readItem(root, name) {
     priority: PRIORITIES.includes(data?.priority) ? data.priority : 'medium',
     order: Number(data?.order) || Number(num),
     created: data?.created || '',
-    // draft = 草稿（还没确认）；queued = 待执行队列，approved 表示计划已经在 Web 上确认过
+    // 规划里只放草稿；queued 是旧版的待执行队列，列出规划时会被 migrateBacklog 转走
     status: data?.status === 'draft' ? 'draft' : 'queued',
     approved: data?.approved === 'true',
     body: body.replace(/^\s*\n/, '').trimEnd(),
@@ -62,7 +62,8 @@ const checkPriority = (p) => {
   if (p !== undefined && !PRIORITIES.includes(p)) throw new HttpError(400, '优先级只能是 high / medium / low');
 };
 
-export function createBacklog(root, { title, priority = 'medium', body = '', draft = false }) {
+// 新建的一律是草稿：可以让 AI 整理，也可以手改后直接确认
+export function createBacklog(root, { title, priority = 'medium', body = '' }) {
   const t = cleanTitle(title);
   if (!t) throw new HttpError(400, '标题不能为空');
   checkPriority(priority);
@@ -70,10 +71,21 @@ export function createBacklog(root, { title, priority = 'medium', body = '', dra
   const nums = safeReaddir(backlogDir(root)).map((f) => Number(FILE_RE.exec(f)?.[1] || 0));
   const num = pad2(Math.max(0, ...nums) + 1);
   const order = Math.max(0, ...items.map((i) => i.order)) + 1;
-  const text = setFrontmatter(`${String(body).trim()}\n`, { title: t, status: draft ? 'draft' : 'queued', priority, order, created: nowStamp() });
+  const text = setFrontmatter(`${String(body).trim()}\n`, { title: t, status: 'draft', priority, order, created: nowStamp() });
   const name = `${num}-${slugify(t)}.md`;
   writeAtomic(path.join(backlogDir(root), name), text);
   return readItem(root, name);
+}
+
+// 批量新建（只收文字）：先全部校验，有一条不对就一条都不建
+export function createBacklogBatch(root, items) {
+  if (!Array.isArray(items) || !items.length) throw new HttpError(400, '没有要新建的草稿');
+  if (items.length > 50) throw new HttpError(400, '一次最多建 50 条');
+  items.forEach((it, i) => {
+    if (!cleanTitle(it?.title)) throw new HttpError(400, `第 ${i + 1} 条标题是空的`);
+    checkPriority(it.priority);
+  });
+  return { items: items.map((it) => createBacklog(root, { title: it.title, priority: it.priority, body: it.body || '' })) };
 }
 
 export function updateBacklog(root, id, { title, priority, body, hash: base }) {

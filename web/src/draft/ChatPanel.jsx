@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Markdown from '../Markdown.jsx';
 import { imageFromEvent } from '../paste.js';
 
-export default function ChatPanel({ chat, running, live, onSend, onStop, onImage, resolveImage }) {
+export default function ChatPanel({ chat, running, queued, live, onSend, onStop, onImage, resolveImage }) {
   const [msg, setMsg] = useState('');
   const endRef = useRef(null);
   const messages = chat?.messages || [];
@@ -42,17 +42,17 @@ export default function ChatPanel({ chat, running, live, onSend, onStop, onImage
             <div className="msg-text"><Markdown text={m.text} resolveImage={resolveImage} /></div>
           </li>
         ))}
-        {running && (
+        {(running || queued) && (
           <li className="msg assistant pending" aria-live="polite">
             <span className="msg-who" aria-hidden="true">AI</span>
             <div className="msg-text">
-              <div className="thinking">整理中<span className="dots" aria-hidden="true" /></div>
+              <div className="thinking">{queued ? '排队中，前面的整理完自动开始' : '整理中'}<span className="dots" aria-hidden="true" /></div>
               {live.tools.map((t, i) => <div key={i} className="tool-line mono">↳ {t}</div>)}
               {live.text && <div className="live-text">{live.text}</div>}
             </div>
           </li>
         )}
-        {chat?.lastError && !running && (
+        {chat?.lastError && !running && !queued && (
           <li className="msg error" role="alert">
             <span className="msg-who" aria-hidden="true">!</span>
             <div className="msg-text">{chat.lastError}</div>
@@ -71,11 +71,11 @@ export default function ChatPanel({ chat, running, live, onSend, onStop, onImage
           }}
           placeholder={messages.length ? '继续说：哪里要改、补充什么…（⌘↩ 发送，可以贴图）' : '想补充的说明（可选）'}
           rows={3}
-          disabled={running}
+          disabled={running || queued}
           aria-label="给 AI 的消息"
         />
         <div className="chat-actions">
-          {running
+          {running || queued
             ? <button type="button" className="btn" onClick={onStop}>⏹ 停止</button>
             : <button type="submit" className="btn primary" disabled={!msg.trim()}>发送</button>}
         </div>

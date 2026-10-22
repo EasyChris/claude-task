@@ -3,6 +3,7 @@
 // session-start：建好今日目录，把最近会话记录、今日任务索引注入上下文。
 //   MEMORY.md 由 Claude Code 的 auto memory 自己加载（前 200 行或 25KB），这里不重复注入。
 // user-prompt-submit：每隔 reminderMinutes 分钟提醒一次写会话记录。
+// queue：打印进行中的任务和执行队列（/next 命令用 !`…` 注入），读法在同目录的 claude-task-queue.mjs。
 // 任何异常都静默结束，不能卡住 Claude Code。
 // 记忆目录的算法在同目录的 claude-task-memdir.mjs，CLI 也用它，保证两边算出同一个目录。
 import fs from 'node:fs';
@@ -10,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveMemoryDir } from './claude-task-memdir.mjs';
+import { formatQueue, queueHint, readQueue } from './claude-task-queue.mjs';
 
 const MAX = { session: 3000, today: 1500 };
 const STATE_DIR = process.env.CLAUDE_TASK_STATE_DIR || path.join(os.tmpdir(), 'claude-task-state');
@@ -79,20 +81,15 @@ function writeState(sessionId, state) {
   fs.writeFileSync(stateFile(sessionId), JSON.stringify(state));
 }
 
-// 规划队列：docs/backlog/*.md 的 frontmatter，按 order 排，取前 5 条（Web 上排的顺序）
-function backlogQueue(root, max = 5) {
+// 规划里的草稿数（docs/backlog/*.md 里 status: draft 的）；确认后会直接转成 task 文件，这里只提醒一句
+function draftCount(root) {
   const dir = path.join(root, 'docs', 'backlog');
-  let files = [];
   try {
-    files = fs.readdirSync(dir).filter((f) => /^\d+-.*\.md$/.test(f));
-  } catch {}
-  const items = files.map((f) => {
-    const fm = /^---\r?\n([\s\S]*?)\r?\n---/.exec(readText(path.join(dir, f), 2000) || '')?.[1] || '';
-    const get = (k) => new RegExp(`^${k}:\\s*(.*)$`, 'm').exec(fm)?.[1]?.replace(/^"(.*)"$/, '$1').trim();
-    return { f, title: get('title') || f.slice(0, -3), priority: get('priority') || 'medium', order: Number(get('order')) || 1e9, draft: get('status') === 'draft', ok: get('approved') === 'true' };
-  }).filter((x) => !x.draft).sort((a, b) => a.order - b.order || a.f.localeCompare(b.f));
-  const tag = { high: '🔴', medium: '🟡', low: '⚪' };
-  return { total: items.length, lines: items.slice(0, max).map((x, i) => `${i + 1}. ${tag[x.priority] || ''} ${x.title}${x.ok ? '（计划已确认）' : ''}（docs/backlog/${x.f}）`) };
+    return fs.readdirSync(dir)
+      .filter((f) => /^\d+-.*\.md$/.test(f) && /^status:\s*draft\s*$/m.test(readText(path.join(dir, f), 2000) || '')).length;
+  } catch {
+    return 0;
+  }
 }
 
 function sessionStart(input, root, cfg) {
@@ -117,12 +114,10 @@ function sessionStart(input, root, cfg) {
     ? `\n## 最近一份会话记录 sessions/${last}\n${readSession(path.join(mem, 'sessions', last))}`
     : '\n## 最近一份会话记录\n（还没有）');
   out.push(`\n## 今日任务索引 docs/tasks/${day}/index.md\n${readText(dayIndex, MAX.today) || '（空）'}`);
-  const queue = backlogQueue(root);
-  if (queue.total) {
-    const more = queue.total > queue.lines.length ? `\n…共 ${queue.total} 条` : '';
-    out.push(`\n## 规划队列（Web 上排好的顺序）\n${queue.lines.join('\n')}${more}`
-      + `\n汇报完问 ${cfg.name || '用户'}：要不要先做第 1 条？做的话把它转成今天的 task 文件；标了「计划已确认」的不用再等确认，直接开工并说一句。`);
-  }
+  const drafts = draftCount(root);
+  if (drafts) out.push(`\n规划里有 ${drafts} 条草稿待确认（在 npx claude-task web 的规划页确认后会直接出现在看板上）。`);
+  const hint = queueHint(readQueue(root));
+  if (hint.length) out.push(`\n${hint.join('\n')}`);
   if (input.source === 'compact') {
     out.push('\n[claude-task] 上下文刚被压缩：先根据摘要把本次会话进展写进/更新会话记录，再继续。');
   }
@@ -147,15 +142,17 @@ function userPromptSubmit(input, cfg) {
 }
 
 function main() {
-  const input = readStdin();
+  const mode = process.argv[2];
+  // queue 是给 /next 手动跑的，不读 stdin（没有输入时读 stdin 会一直等）
+  const input = mode === 'queue' ? {} : readStdin();
   // 和 CLI 一样先解析软链接（macOS 的 /var → /private/var），否则两边算出的记忆目录对不上
   let root = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
   try {
     root = fs.realpathSync(root);
   } catch {}
   const cfg = readJSONSafe(path.join(root, '.claude', 'claude-task.json')) || {};
-  const mode = process.argv[2];
-  if (mode === 'session-start') sessionStart(input, root, cfg);
+  if (mode === 'queue') process.stdout.write(formatQueue(readQueue(root)));
+  else if (mode === 'session-start') sessionStart(input, root, cfg);
   else if (mode === 'user-prompt-submit') userPromptSubmit(input, cfg);
 }
 

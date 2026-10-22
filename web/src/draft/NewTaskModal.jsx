@@ -21,7 +21,7 @@ export default function NewTaskModal({ pid, onClose, onCreated }) {
 
   const ensureDraft = async () => {
     if (draftId) return draftId;
-    const d = await api('POST', `${P(pid)}/backlog`, { title: title.trim() || '未命名任务', priority, body: '', draft: true });
+    const d = await api('POST', `${P(pid)}/backlog`, { title: title.trim() || '未命名任务', priority, body: '' });
     setDraftId(d.id);
     return d.id;
   };
@@ -59,7 +59,7 @@ export default function NewTaskModal({ pid, onClose, onCreated }) {
         const cur = await api('GET', `${P(pid)}/backlog`).then((r) => r.items.find((i) => i.id === id));
         await api('PUT', B(pid, id), { title: t, priority, body, hash: cur?.hash });
       } else {
-        id = (await api('POST', `${P(pid)}/backlog`, { title: t, priority, body, draft: true })).id;
+        id = (await api('POST', `${P(pid)}/backlog`, { title: t, priority, body })).id;
       }
       if (withAi) await api('POST', `${B(pid, id)}/ai`, { useProject });
       onCreated();

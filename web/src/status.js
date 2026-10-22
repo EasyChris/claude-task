@@ -10,6 +10,9 @@ export const STATUS = {
   unknown: { label: '状态未知', tone: 'muted' },
 };
 
+// 看板「待开始」列的状态；这些状态的任务再带上 run_order 就在「执行队列」列（和服务端 claude-task-queue.mjs 一致）
+export const QUEUE_STATUSES = ['queued', 'planning', 'awaiting_approval'];
+
 // 详情页下拉框里能选的状态（unknown 只能被推断出来，不能手选）
 export const EDITABLE = ['queued', 'planning', 'awaiting_approval', 'in_progress', 'done', 'paused', 'cancelled'];
 

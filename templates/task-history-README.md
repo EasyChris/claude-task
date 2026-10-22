@@ -12,8 +12,8 @@ docs/
 │       ├── index.md               # 当日任务索引
 │       ├── task-NN.md             # 单个任务详情
 │       └── assets/                # 截图等附件（task 里用相对路径引用）
-├── backlog/                       # 规划队列（以后要做的事，Web 上可以加、排序、贴图）
-│   ├── NN-标题.md                 # 一条规划
+├── backlog/                       # 规划草稿（以后要做的事，Web 上整理、确认后转成 task 文件）
+│   ├── NN-标题.md                 # 一条草稿
 │   └── assets/                    # 规划里贴的图，命名 bl-NN-序号.png
 └── task-history/                  # 月度索引
     ├── README.md                  # 本文件
@@ -56,6 +56,8 @@ title: <一句话任务标题>
 status: in_progress
 created: YYYY-MM-DDTHH:mm
 sessions: <会话 id>   # 做过这个任务的 Claude 会话 id，逗号分隔；hook 会告诉你本次的 id，Web 靠它显示完整对话
+approved: true        # 可选：计划已在 Web 上确认过，开工不用再等确认
+run_order: 1          # 可选：在执行队列里的顺序，见下面「执行队列」
 ---
 
 # 任务 N: <任务标题>
@@ -91,15 +93,21 @@ sessions: <会话 id>   # 做过这个任务的 Claude 会话 id，逗号分隔�
 
 上线 commit、待确认这类补充信息写在当日/月度索引行里，不写进 `status`。
 
+#### 执行队列（`run_order`）
+
+- `run_order: <正整数>` = 排在执行队列里，按它从小到大依次做；不同日期的 task 可以排在同一个队列里。
+- 只有状态是 `queued` / `planning` / `awaiting_approval` 且有 `run_order` 的才算在队列里；`in_progress` / `done` / `paused` / `cancelled` 的 `run_order` 会被忽略。
+- {{name}} 在 Web 看板上把任务拖进「执行队列」列、上下拖动排序，工具会把整列重排成 1..n；拖出队列就删掉这个字段。不要手动改别的任务的 `run_order`。
+- 开工时（`status` 改成 `in_progress`）**删掉 `run_order` 这一行**。{{#hooks}}CLI 里输入 `/next` 会取队列第 1 条来做，一次只做一条。{{/hooks}}
+
 没有 frontmatter 的旧 task 文件不用改：工具会按路径推断 `id`、按第一行标题推断 `title`、按子任务勾选情况推断进度。
 
-### backlog/NN-标题.md（规划）
+### backlog/NN-标题.md（规划草稿）
 
 ```markdown
 ---
 title: <一句话任务标题>
-status: queued          # draft = 草稿（还在整理）；queued = 待执行队列
-approved: true          # 计划已在 Web 上确认；开工不用再等确认
+status: draft           # 都是草稿；确认后直接转成 task 文件（status: queued、approved: true）上看板
 priority: medium        # high / medium / low
 order: 3                # 排序，越小越靠前；Web 上拖动会改它
 created: YYYY-MM-DDTHH:mm
@@ -108,7 +116,7 @@ created: YYYY-MM-DDTHH:mm
 <需求、背景、验收标准；图片写 ![说明](assets/bl-NN-1.png)>
 ```
 
-- 开始做某条规划时：建今天的 `task-NN.md`（frontmatter 加 `from: backlog/<文件名>`，需求分析用规划正文），把 `assets/bl-NN-*` 图片搬到当天 `assets/` 并改名为 `task-NN-*`，然后删掉这条规划文件。Web 上的「开始」按钮做的就是这件事。
+- {{name}} 在 Web 草稿页点「确认」时：建今天的 `task-NN.md`（frontmatter 带 `status: queued`、`approved: true`、`from: backlog/<文件名>`，正文用草稿内容），把 `assets/bl-NN-*` 图片搬到当天 `assets/` 并改名为 `task-NN-*`，然后删掉草稿文件。之后在看板上拖进「执行队列」排顺序。
 - 不要手改别人正在 Web 上编辑的规划；排序只改 `order`。
 
 ### 当日 index.md

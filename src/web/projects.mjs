@@ -1,6 +1,7 @@
 // 多项目：读写 ~/.claude-task/projects.json、扫描目录找旧项目、总览页的统计
 import fs from 'node:fs';
 import path from 'node:path';
+import { inQueue } from '../../templates/claude-task-queue.mjs';
 import { needsMigrate, projectKind } from '../claudemd.mjs';
 import { assignIds, registryFile, sortProjects } from '../registry.mjs';
 import { localDate, readJSON, resolveRoot, tildify } from '../util.mjs';
@@ -92,8 +93,6 @@ export function scan(dir) {
   return { dir: tildify(base), projects: found.sort((a, b) => b.tasks - a.tasks || a.name.localeCompare(b.name)) };
 }
 
-const WAITING = ['queued', 'planning', 'awaiting_approval'];
-
 export function summarize(p) {
   const base = { id: p.id, name: p.name, path: tildify(p.path) };
   if (!fs.existsSync(p.path)) return { ...base, missing: true };
@@ -105,7 +104,7 @@ export function summarize(p) {
     ...kindOf(p.path),
     counts: {
       active: active.length,
-      waiting: tasks.filter((t) => WAITING.includes(t.status)).length,
+      queue: tasks.filter(inQueue).length, // 执行队列条数；规划草稿数是下面的 backlog
       awaiting: tasks.filter((t) => t.status === 'awaiting_approval').length,
       backlog: listBacklog(p.path).length,
       doneMonth: tasks.filter((t) => t.status === 'done' && (t.completed || t.date).startsWith(month)).length,

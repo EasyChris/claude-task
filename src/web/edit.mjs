@@ -1,7 +1,8 @@
 // 网页上对 task 文件的改动：都是「读最新 → 只改对应的行 → 原子写回」，不和 Claude 互相覆盖
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseFrontmatter, setFrontmatter } from './frontmatter.mjs';
+import { NOT_QUEUED } from '../../templates/claude-task-queue.mjs';
+import { parseFrontmatter, removeFrontmatter, setFrontmatter } from './frontmatter.mjs';
 import { HttpError, hash, nowStamp, writeAtomic } from './fsutil.mjs';
 import { syncIndexes } from './sync.mjs';
 import { STATUSES } from './status.mjs';
@@ -73,6 +74,7 @@ export function addSubtask(root, id, { text }) {
 }
 
 // 旧文件第一次改状态时补上 frontmatter（id / title / created），同时改当日、月度索引里那一行
+// 改成进行中 / 已完成 / 暂存 / 取消 = 离开执行队列，顺带去掉 run_order
 export function setStatus(root, id, { status }) {
   if (!STATUSES.includes(status)) throw new HttpError(400, `不认识的状态：${status}`);
   const { file, date, num } = resolveTask(root, id);
@@ -85,7 +87,8 @@ export function setStatus(root, id, { status }) {
   fields.status = status;
   if (!data?.created) fields.created = `${date}T00:00`;
   if (status === 'done' && !data?.completed) fields.completed = nowStamp();
-  writeAtomic(file, setFrontmatter(src, fields));
+  const next = setFrontmatter(src, fields);
+  writeAtomic(file, NOT_QUEUED.includes(status) ? removeFrontmatter(next, ['run_order']) : next);
   syncIndexes(root, { date, num, title, status, fileName: path.basename(file) });
   return getTask(root, id);
 }

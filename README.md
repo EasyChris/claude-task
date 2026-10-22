@@ -6,7 +6,8 @@
 - `docs/tasks/YYYY-MM-DD/`：每日任务目录，task 文件带 frontmatter（以后的 Web 看板读它）
 - `docs/task-history/`：月度索引 + 记录规范
 - 记忆目录：和 Claude Code 原生 auto memory 同一个（`~/.claude/projects/<主仓库路径>/memory/`，设置了 `autoMemoryDirectory` 就用它），含 `MEMORY.md` 和 `sessions/`
-- Claude Code hooks：会话开始时自动注入最近一份会话记录和今日任务（`MEMORY.md` 由 auto memory 自己加载）；定时提醒写会话记录
+- Claude Code hooks：会话开始时自动注入最近一份会话记录和今日任务（`MEMORY.md` 由 auto memory 自己加载），执行队列不为空时提示输入 `/next`；定时提醒写会话记录
+- `/next` 命令：按看板「执行队列」的顺序取第 1 条来做，一次只做一条，做完停下汇报（跟着 hooks 装，`--no-hooks` 时不装）
 
 零依赖，Node ≥ 18.3。
 
@@ -24,10 +25,10 @@ npx github:EasyChris/claude-task web       # 打开本地 Web 看板
 
 `claude-task web` 启动一个只监听本机的服务，所有项目共用一个；已经在运行就直接打开浏览器。
 
-- 总览：所有项目的进行中 / 排队 / 本月完成，跨项目的进行中任务
-- 看板：规划 / 进行中 / 已完成三列，拖动卡片就是改状态
+- 总览：所有项目的进行中 / 执行队列 / 本月完成，跨项目的进行中任务
+- 看板：待开始 / 执行队列 / 进行中 / 已完成四列。拖进「执行队列」排顺序（写 task frontmatter 的 `run_order`，可以落在指定位置，不同日期的任务能排在一起），队列内上下拖调顺序，拖回「待开始」移出队列；拖到进行中 / 已完成只改状态，不会触发执行。排好后在 Claude Code 里输入 `/next` 一次做一条
 - 任务详情：直接勾子任务、加子任务、改状态、⌘V 贴图；「编辑原文」保存前会比对，Claude 同时改过就弹冲突框
-- 规划：分成「草稿」和「待执行队列」。新建任务时贴需求、贴图，点「AI 整理」：第一轮一次性整理成需求分析 / 子任务 / 验收标准，拿不准的列成待确认问题；可以回答、继续对话或手改，确认后进队列。新开 Claude 会话时 hook 会把队列前 5 条带给 Claude，已确认的计划直接开工
+- 规划：只放草稿。新建任务（贴需求、贴图）、快速添加、批量新建（一次贴多段，用空行或单独一行 `---` 分隔，先预览再建）都建成草稿。可以勾选多条一起「AI 整理」（同时最多 3 条，其余排队自动接上），整理成需求分析 / 子任务 / 验收标准，拿不准的列成待确认问题；回答问题、继续对话、手改都在单条草稿页里做。草稿页点确认就直接转成今天的 task 文件（`status: queued`、`approved: true`），出现在看板「待开始」列，Claude 开工时不再等确认；有没回答的问题会先弹窗列出建议答案，同意后按建议写进正文
 - AI 整理调用本机的 `claude -p`（用你的 Claude Code 登录和额度），只开 Read / Grep / Glob，不加载项目的 hooks 和 MCP，`.env`、密钥类文件拒读
 - 历史（按月份、搜正文）、会话记录（只读）
 - 扫描目录：把已有 `docs/tasks` 的旧项目加进来，旧格式直接兼容，不改文件；旧版工作流的项目标「需要迁移」，项目页能复制迁移命令（网页只提醒，不替你迁移）
@@ -81,9 +82,12 @@ npx github:EasyChris/claude-task migrate --yes  # 确认后写入
 ├── .claude/
 │   ├── claude-task.json        # 配置（称呼、是否装 hooks、提醒间隔）
 │   ├── settings.json           # 只增删 claude-task 自己的 hooks，其他配置保留
+│   ├── commands/
+│   │   └── next.md             # /next：按执行队列做下一条（跟着 hooks 装）
 │   └── hooks/
-│       ├── claude-task.mjs         # hook 脚本，本地运行，不联网
-│       └── claude-task-memdir.mjs  # 算 auto memory 目录（hook 和 CLI 共用）
+│       ├── claude-task.mjs         # hook 脚本，本地运行，不联网；`queue` 子命令打印执行队列
+│       ├── claude-task-memdir.mjs  # 算 auto memory 目录（hook 和 CLI 共用）
+│       └── claude-task-queue.mjs   # 读执行队列（hook、/next 和 Web 共用同一套规则）
 └── docs/
     ├── task-history/README.md
     ├── task-history/YYYY-MM/index.md

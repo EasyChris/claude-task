@@ -52,3 +52,13 @@ export function setFrontmatter(text, fields) {
   }
   return `---\n${lines.join('\n')}\n---\n${text.slice(m[0].length)}`;
 }
+
+// 删掉若干字段（整行去掉），其余行原样保留；没有 frontmatter 或没有这些字段就原样返回
+export function removeFrontmatter(text, keys) {
+  const m = FM.exec(text);
+  if (!m) return text;
+  const lines = m[1].split(/\r?\n/);
+  const kept = lines.filter((l) => !keys.includes(keyOf(l)));
+  if (kept.length === lines.length) return text;
+  return `---\n${kept.join('\n')}\n---\n${text.slice(m[0].length)}`;
+}

@@ -4,6 +4,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { PKG_ROOT } from '../util.mjs';
 import { stopAll } from './ai/drafts.mjs';
+import { migrateBacklog } from './backlogMigrate.mjs';
 import { HttpError } from './fsutil.mjs';
 import { COOKIE, hostAllowed, parseCookies, read, sameToken, sendFile, sendJSON, sendStatic } from './httputil.mjs';
 import { readProjects } from './projects.mjs';
@@ -111,6 +112,12 @@ export function createServer({ token = crypto.randomBytes(24).toString('base64ur
         } catch (e) {
           if (e.code !== 'EADDRINUSE' || p === 0 || k >= tries - 1) throw e;
         }
+      }
+      // 旧版规划队列转走（列出规划时也会做，这里先替所有项目跑一遍）
+      for (const p of readProjects()) {
+        try {
+          migrateBacklog(p.path);
+        } catch {}
       }
       ctx.refreshWatch();
       watcher.watchRegistry(() => ctx.refreshWatch());

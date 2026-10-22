@@ -5,7 +5,8 @@
 - **月度索引**：`docs/task-history/YYYY-MM/index.md`，一行一个任务（一句话标题 + 结论）。
 - **任务详情**：`docs/tasks/YYYY-MM-DD/task-NN.md`，开头带 frontmatter（`id / title / status / created`）。
 - **记录规范与模板**：[docs/task-history/README.md](docs/task-history/README.md)，写任务记录前先读。
-- **规划队列**：`docs/backlog/NN-标题.md`，以后要做的事；{{name}} 可以在 `npx claude-task web` 里添加、排序、贴图。{{name}} 说「以后再做 / 先记下来」时也写到这里。
+- **规划草稿**：`docs/backlog/NN-标题.md`，以后要做的事，都是草稿；{{name}} 在 `npx claude-task web` 的规划页整理、确认，确认后直接转成 task 文件上看板。{{name}} 说「以后再做 / 先记下来」时也写成草稿。
+- **执行队列**：task frontmatter 里有 `run_order` 的任务，{{name}} 在看板上把任务拖进「执行队列」排好顺序{{#hooks}}，在 CLI 输入 `/next` 一次做一条（做完停下，不自动接下一条）{{/hooks}}。
 
 开工前先搜相关历史，两处一起搜（标题精简过，很多关键词只在 task 文件里）：
 
@@ -34,15 +35,15 @@ grep -rn "关键词" docs/task-history/ docs/tasks/
    - 最近会话：sessions/YYYY-MM-DD-NN.md（<一句话标题>）
    - 上次待办：<没有就写「无」>
    ```
-5. **询问 {{name}} 今天要做什么**；规划队列不为空时，顺带问要不要先做排在第 1 条的规划。
+5. **询问 {{name}} 今天要做什么**{{#hooks}}；执行队列不为空时提一句「输入 /next 按顺序做」，不要自己开工{{/hooks}}。
 
 ## 接到任务后的顺序（禁止跳步）
 
 1. 分析需求，搜相关历史任务，列编号步骤的计划。
-2. **等 {{name}} 确认计划**。从规划队列取的、frontmatter 有 `approved: true` 的，计划已在 Web 上确认过，跳过这一步，直接开工并说一句。
+2. **等 {{name}} 确认计划**。task frontmatter 有 `approved: true` 的（在 Web 规划页确认过），跳过这一步，直接开工并说一句。
 3. 确认后先建 `docs/tasks/YYYY-MM-DD/task-NN.md`（frontmatter `status: in_progress` + 需求分析 + 全部子任务 `[ ]`），并在当日 `index.md` 加一行。
 4. 再开始写代码；每完成一个子任务就把 `[ ]` 改成 `[x]`。
-5. 全部完成后把 frontmatter 的 `status` 改成 `done`，补齐 task 文件的「总结 / 踩坑记录 / 后续 session 注意」。
+5. 全部完成后把 frontmatter 的 `status` 改成 `done`（开工时就删掉 `run_order`），补齐 task 文件的「总结 / 踩坑记录 / 后续 session 注意」。
 6. 在当月 `docs/task-history/YYYY-MM/index.md` 追加一行（当月第一个任务就新建这个文件）。
 
 复杂任务逐步执行，**每完成一步向 {{name}} 汇报**。

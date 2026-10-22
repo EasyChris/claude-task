@@ -2,6 +2,9 @@
 export const HOOK_SCRIPT = '.claude/hooks/claude-task.mjs';
 // hook 依赖的记忆目录算法，和 hook 放在一起，跟着 hook 一起装/删
 export const MEMDIR_SCRIPT = '.claude/hooks/claude-task-memdir.mjs';
+// 执行队列的读法（hook 的 queue 子命令和开场提示用）和 /next 命令，都依赖 hook 脚本，跟着 hook 一起装/删
+export const QUEUE_SCRIPT = '.claude/hooks/claude-task-queue.mjs';
+export const NEXT_COMMAND = '.claude/commands/next.md';
 
 const EVENTS = {
   SessionStart: 'session-start',

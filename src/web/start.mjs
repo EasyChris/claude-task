@@ -1,9 +1,10 @@
-// 规划里点「开始」：转成今天的 task-NN.md（status: planning），图片搬进当天 assets/，再删掉规划文件
+// 规划条目转成今天的 task-NN.md：图片搬进当天 assets/，更新当日索引，再删掉规划文件
+// 草稿确认、旧数据迁移都走这里；approved 的转成 status: queued + approved: true，出现在看板「待开始」列
 import fs from 'node:fs';
 import path from 'node:path';
 import { backlogDir, backlogFile, getBacklog } from './backlog.mjs';
 import { setFrontmatter } from './frontmatter.mjs';
-import { HttpError, escapeRe, nowStamp, pad2, safeReaddir, writeAtomic } from './fsutil.mjs';
+import { escapeRe, nowStamp, pad2, safeReaddir, writeAtomic } from './fsutil.mjs';
 import { syncIndexes } from './sync.mjs';
 import { TASK_FILE_RE } from './tasks.mjs';
 import { localDate } from '../util.mjs';
@@ -21,10 +22,11 @@ function moveImages(root, item, dayDir, num, body) {
   return body;
 }
 
-export function startBacklog(root, id) {
+// approved 不传就看规划文件自己的 approved 字段
+export function startBacklog(root, id, { approved } = {}) {
   const file = backlogFile(root, id);
   const item = getBacklog(root, id);
-  if (item.status === 'draft') throw new HttpError(400, '草稿还没确认：先在草稿页点「确认，加入队列」');
+  const ok = approved ?? item.approved;
   const { day } = localDate();
   const dayDir = path.join(root, 'docs', 'tasks', day);
   const nums = safeReaddir(dayDir).map((f) => Number(TASK_FILE_RE.exec(f)?.[1] || 0));
@@ -33,7 +35,7 @@ export function startBacklog(root, id) {
 
   // AI 整理过的规划已经分好「## 需求分析 / ## 子任务」，直接用；手写的短规划套一层模板
   const main = /^##\s/m.test(body) ? [body.trim()] : ['## 需求分析', '', body.trim() || '（待补充）', '', '## 子任务'];
-  const status = item.approved ? 'queued' : 'planning';
+  const status = ok ? 'queued' : 'planning';
   const text = [
     `# 任务 ${Number(num)}: ${item.title}`,
     '',
@@ -51,7 +53,7 @@ export function startBacklog(root, id) {
     id: taskId,
     title: item.title,
     status,
-    approved: item.approved ? 'true' : undefined,
+    approved: ok ? 'true' : undefined,
     priority: item.priority,
     created: nowStamp(),
     from: `backlog/${id}.md`,

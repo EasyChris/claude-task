@@ -51,12 +51,13 @@ async function api(method, url, body) {
 const B = (id) => `/api/p/${pid}/backlog/${encodeURIComponent(id)}`;
 const calls = () => fs.readFileSync(process.env.FAKE_CLAUDE_LOG, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const argAfter = (args, flag) => args[args.indexOf(flag) + 1];
-const draft = (title, body = '销售说想导出库存，带筛选') => api('POST', `/api/p/${pid}/backlog`, { title, body, draft: true });
+const draft = (title, body = '销售说想导出库存，带筛选') => api('POST', `/api/p/${pid}/backlog`, { title, body });
+const list = async () => (await api('GET', `/api/p/${pid}/backlog`)).items;
 
 async function idle(id) {
   for (let i = 0; i < 100; i++) {
     const c = await api('GET', `${B(id)}/chat`);
-    if (!c.running) return c;
+    if (!c.running && !c.queued) return c;
     await new Promise((r) => setTimeout(r, 50));
   }
   throw new Error('一直在整理中');
@@ -146,22 +147,30 @@ test('不参考项目时只给 backlog 目录；格式不对记成错误', async
   assert.equal(c.item.body, 'BADJSON');
 });
 
-test('确认：没回答的问题按默认记进正文、进队列并标 approved；草稿不能直接开始', async () => {
+test('确认 = 直接上看板：没回答的问题按默认写进正文，转成今天的 task（queued + approved）', async () => {
   const d = await draft('要确认的');
   await api('POST', `${B(d.id)}/ai`, {});
   await idle(d.id);
-  await assert.rejects(api('POST', `${B(d.id)}/start`), { status: 400 });
   const ok = await api('POST', `${B(d.id)}/approve`);
-  assert.deepEqual([ok.status, ok.approved], ['queued', true]);
-  assert.match(ok.body, /## 待确认（按建议默认处理）\n\n- 价格列要不要导？ → 默认：只给管理员导/);
-  const started = await api('POST', `${B(d.id)}/start`);
-  const [day, num] = [started.id.slice(0, 10), started.id.slice(11)];
+  const [day, num] = [ok.id.slice(0, 10), ok.id.slice(11)];
   const text = fs.readFileSync(path.join(root, 'docs', 'tasks', day, `task-${num}.md`), 'utf8');
   const fm = parseFrontmatter(text).data;
-  assert.deepEqual([fm.status, fm.approved], ['queued', 'true']);
+  assert.deepEqual([fm.status, fm.approved, fm.title], ['queued', 'true', '库存页导出 Excel']);
+  assert.match(text, /## 待确认（按建议默认处理）\n\n- 价格列要不要导？ → 默认：只给管理员导/);
   assert.equal(text.match(/## 子任务/g).length, 1);
   assert.match(text, /- \[ \] 后端导出接口/);
   await assert.rejects(api('GET', `${B(d.id)}/chat`), { status: 404 });
+  const t = (await api('GET', `/api/p/${pid}/tasks`)).tasks.find((x) => x.id === ok.id);
+  assert.equal(t.status, 'queued');
+});
+
+test('快速添加的草稿不经过 AI 也能直接确认', async () => {
+  const d = await api('POST', `/api/p/${pid}/backlog`, { title: '手写的一条' });
+  assert.equal(d.status, 'draft');
+  const ok = await api('POST', `${B(d.id)}/approve`);
+  const text = fs.readFileSync(path.join(root, 'docs', 'tasks', ok.id.slice(0, 10), `task-${ok.id.slice(11)}.md`), 'utf8');
+  assert.deepEqual([parseFrontmatter(text).data.status, parseFrontmatter(text).data.approved], ['queued', 'true']);
+  assert.doesNotMatch(text, /待确认（按建议默认处理）/);
 });
 
 test('没装 claude 时报清楚的错', async () => {
@@ -185,18 +194,49 @@ test('整理中不能重复发起，可以停止', async () => {
   assert.equal(c.chat.messages.at(-1).text, '已停止');
 });
 
-test('hook 的规划队列跳过草稿，标出计划已确认', async () => {
-  const d = await draft('还是草稿的事');
-  await api('POST', `/api/p/${pid}/backlog`, { title: '手写的规划' });
-  const q = await draft('确认过的事');
-  await api('POST', `${B(q.id)}/approve`);
+test('批量整理：同时最多 3 条，第 4 条先排队，前面结束后自动开始', async () => {
+  const { items } = await api('POST', `/api/p/${pid}/backlog/batch`, { items: [1, 2, 3, 4].map((n) => ({ title: `批量 ${n}`, body: `WAIT ${n}` })) });
+  const ids = items.map((i) => i.id);
+  const { results } = await api('POST', `/api/p/${pid}/backlog/ai`, { ids, useProject: false });
+  assert.deepEqual(results.map((r) => Boolean(r.queued)), [false, false, false, true]);
+  const now = await list();
+  const st = (id) => now.find((i) => i.id === id);
+  assert.deepEqual(ids.map((id) => [st(id).running, st(id).queued]), [[true, false], [true, false], [true, false], [false, true]]);
+  for (const id of ids) await idle(id);
+  const after = await list();
+  assert.deepEqual(ids.map((id) => after.find((i) => i.id === id).rounds), [1, 1, 1, 1]);
+  // 第 4 条是最后一个被调起的
+  assert.match(calls().at(-1).input, /WAIT 4/);
+  // 整理过的不能再批量整理（要去草稿页回答问题或继续对话）
+  const again = await api('POST', `/api/p/${pid}/backlog/ai`, { ids: [ids[0]] });
+  assert.match(again.results[0].error, /已经整理过了/);
+});
+
+test('排队中的可以停止或删除，从队列里移除，不会再被调起', async () => {
+  const slow = [];
+  for (const n of [1, 2, 3]) slow.push(await draft(`占位 ${n}`, 'SLOW'));
+  const a = await draft('排队甲');
+  const b = await draft('排队乙');
+  const { results } = await api('POST', `/api/p/${pid}/backlog/ai`, { ids: [...slow.map((x) => x.id), a.id, b.id] });
+  assert.deepEqual(results.map((r) => Boolean(r.queued)), [false, false, false, true, true]);
+  await assert.rejects(api('POST', `${B(a.id)}/approve`), { status: 409 });
+  await api('POST', `${B(a.id)}/ai/stop`);
+  assert.equal((await api('GET', `${B(a.id)}/chat`)).queued, false);
+  await api('DELETE', B(b.id));
+  for (const x of slow) await api('POST', `${B(x.id)}/ai/stop`);
+  for (const x of slow) await idle(x.id);
+  assert.equal((await api('GET', `${B(a.id)}/chat`)).chat, null);
+  assert.ok(!calls().some((c) => /排队甲|排队乙/.test(c.input)));
+});
+
+test('hook 不再带规划队列，只提醒有几条草稿待确认', async () => {
+  const n = (await list()).length;
+  assert.ok(n > 0);
   const out = execFileSync('node', [path.join(PKG_ROOT, 'templates', 'hook.mjs'), 'session-start'], {
     input: JSON.stringify({ session_id: 'ai-hook', source: 'startup' }),
     env: { ...process.env, CLAUDE_PROJECT_DIR: root, CLAUDE_TASK_STATE_DIR: path.join(home, 'state') },
     encoding: 'utf8',
   });
-  const queue = out.slice(out.indexOf('## 规划队列'));
-  assert.match(queue, /手写的规划/);
-  assert.match(queue, /确认过的事（计划已确认）/);
-  assert.doesNotMatch(queue, new RegExp(d.title));
+  assert.match(out, new RegExp(`规划里有 ${n} 条草稿待确认`));
+  assert.doesNotMatch(out, /规划队列/);
 });

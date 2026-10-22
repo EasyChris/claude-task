@@ -7,6 +7,7 @@ import { after, before, test } from 'node:test';
 import { setFrontmatter, parseFrontmatter } from '../src/web/frontmatter.mjs';
 import { createServer } from '../src/web/server.mjs';
 import { parseTask } from '../src/web/tasks.mjs';
+import { splitDrafts } from '../web/src/draft/split.js';
 
 let srv;
 let base;
@@ -139,23 +140,56 @@ test('贴图：存进 assets 并追加到「## 附件」，只能读 docs 下的
   }
 });
 
-test('规划：新建、排序、开始 → 今天的 task 文件 + 图片搬过去 + 规划删除', async () => {
+test('规划：新建是草稿，确认 → 今天的 task 文件 + 图片搬过去 + 规划删除', async () => {
   const a = await api('POST', `/api/p/${pid}/backlog`, { title: '做看板', priority: 'high', body: '要能拖动' });
   const b = await api('POST', `/api/p/${pid}/backlog`, { title: '写文档' });
-  const { items } = await api('POST', `/api/p/${pid}/backlog/reorder`, { ids: [b.id, a.id] });
-  assert.deepEqual(items.map((i) => i.title), ['写文档', '做看板']);
+  assert.deepEqual([a.status, b.status], ['draft', 'draft']);
   const img = await fetch(`${base}/api/p/${pid}/backlog/${encodeURIComponent(a.id)}/images`, {
     method: 'POST', headers: { cookie: 'ct_token=T', 'x-claude-task': '1', 'content-type': 'image/png' }, body: Buffer.from([1]),
   }).then((r) => r.json());
   await api('PUT', `/api/p/${pid}/backlog/${encodeURIComponent(a.id)}`, { body: `要能拖动\n\n![图](${img.path})` });
-  const started = await api('POST', `/api/p/${pid}/backlog/${encodeURIComponent(a.id)}/start`);
+  const started = await api('POST', `/api/p/${pid}/backlog/${encodeURIComponent(a.id)}/approve`);
   const [d, n] = [started.id.slice(0, 10), started.id.slice(11)];
   const text = read('docs', 'tasks', d, `task-${n}.md`);
-  assert.equal(parseFrontmatter(text).data.status, 'planning');
+  assert.deepEqual([parseFrontmatter(text).data.status, parseFrontmatter(text).data.approved], ['queued', 'true']);
   assert.match(text, /!\[图\]\(assets\/task-\d+-1\.png\)/);
   assert.ok(fs.existsSync(path.join(root, 'docs', 'tasks', d, 'assets', `task-${n}-1.png`)));
-  assert.match(read('docs', 'tasks', d, 'index.md'), /做看板 — 📝 规划中/);
+  assert.match(read('docs', 'tasks', d, 'index.md'), /做看板 — 📋 排队中/);
   assert.deepEqual((await api('GET', `/api/p/${pid}/backlog`)).items.map((i) => i.title), ['写文档']);
+  await api('DELETE', `/api/p/${pid}/backlog/${encodeURIComponent(b.id)}`);
+});
+
+test('批量新建：全部校验通过才建；全是草稿', async () => {
+  await assert.rejects(api('POST', `/api/p/${pid}/backlog/batch`, { items: [{ title: '好的' }, { title: '  ' }] }), { status: 400 });
+  assert.equal((await api('GET', `/api/p/${pid}/backlog`)).items.length, 0);
+  const { items } = await api('POST', `/api/p/${pid}/backlog/batch`, { items: [{ title: '甲', body: '甲\n细节' }, { title: '乙' }] });
+  assert.deepEqual(items.map((i) => [i.title, i.status]), [['甲', 'draft'], ['乙', 'draft']]);
+  for (const i of items) await api('DELETE', `/api/p/${pid}/backlog/${encodeURIComponent(i.id)}`);
+});
+
+test('旧数据迁移：approved 的队列条目转成 task 上看板，没 approved 的退回草稿；再跑一次不变', async () => {
+  const dir = path.join(root, 'docs', 'backlog');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, '90-已确认.md'), '---\ntitle: 已确认的旧条目\nstatus: queued\napproved: true\npriority: high\norder: 1\n---\n\n## 需求分析\n\n旧的\n');
+  fs.writeFileSync(path.join(dir, '91-没确认.md'), '---\ntitle: 没确认的旧条目\nstatus: queued\npriority: medium\norder: 2\n---\n\n手写的\n');
+  const first = (await api('GET', `/api/p/${pid}/backlog`)).items;
+  assert.deepEqual(first.map((i) => [i.title, i.status]), [['没确认的旧条目', 'draft']]);
+  assert.ok(!fs.existsSync(path.join(dir, '90-已确认.md')));
+  const t = (await api('GET', `/api/p/${pid}/tasks`)).tasks.find((x) => x.title === '已确认的旧条目');
+  const fm = parseFrontmatter(read('docs', 'tasks', t.date, `task-${t.num}.md`)).data;
+  assert.deepEqual([fm.status, fm.approved, fm.from], ['queued', 'true', 'backlog/90-已确认.md']);
+  const tasksBefore = (await api('GET', `/api/p/${pid}/tasks`)).tasks.length;
+  const again = (await api('GET', `/api/p/${pid}/backlog`)).items;
+  assert.deepEqual(again, first);
+  assert.equal((await api('GET', `/api/p/${pid}/tasks`)).tasks.length, tasksBefore);
+  await api('DELETE', `/api/p/${pid}/backlog/${encodeURIComponent(first[0].id)}`);
+});
+
+test('批量新建拆分：空行分隔；有单独一行 --- 时只按 --- 分；标题取第一行', () => {
+  assert.deepEqual(splitDrafts('甲\n细节\n\n\n# 乙\n'), [{ title: '甲', body: '甲\n细节' }, { title: '乙', body: '# 乙' }]);
+  assert.deepEqual(splitDrafts('甲\n\n甲的第二段\n---\n乙\n  ---  \n\n').map((x) => x.title), ['甲', '乙']);
+  assert.equal(splitDrafts('甲\n\n甲的第二段\n---\n乙')[0].body, '甲\n\n甲的第二段');
+  assert.deepEqual(splitDrafts('  \n\n '), []);
 });
 
 test('扫描目录只读，能找到项目，旧版工作流标出需要迁移', async () => {

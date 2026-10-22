@@ -9,7 +9,11 @@ export function useDraftChat(pid, id, version) {
 
   useAiEvents((d) => {
     if (d.project !== pid || d.id !== id) return;
-    if (d.kind === 'start') setLive({ text: '', tools: [] });
+    if (d.kind === 'queued') reload();
+    else if (d.kind === 'start') {
+      setLive({ text: '', tools: [] });
+      reload();
+    }
     else if (d.kind === 'delta') setLive((s) => ({ ...s, text: (s.text + d.text).slice(-1500) }));
     else if (d.kind === 'tool') setLive((s) => ({ ...s, tools: [...s.tools.slice(-5), `${d.name} ${d.target}`] }));
     else if (d.kind === 'done' || d.kind === 'error') {

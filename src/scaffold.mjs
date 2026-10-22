@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { mergeHooks, HOOK_SCRIPT, MEMDIR_SCRIPT } from './settings.mjs';
+import { mergeHooks, HOOK_SCRIPT, MEMDIR_SCRIPT, NEXT_COMMAND, QUEUE_SCRIPT } from './settings.mjs';
 import { MANAGED, localDate, memoryDir, memoryDirDisplay, pkgVersion, readJSON, readTemplate, render } from './util.mjs';
 
 export const CONFIG_FILE = path.join('.claude', 'claude-task.json');
@@ -21,15 +21,23 @@ export function templateVars(root, cfg, extra = {}) {
   };
 }
 
-// 受管文件：init 和 update 都会刷新（配置、hook 脚本、settings 里的 hooks、记录规范）
+// 受管文件：init 和 update 都会刷新（配置、hook 脚本、/next 命令、settings 里的 hooks、记录规范）
 export function writeManaged(root, cfg, w) {
   const settingsFile = path.join(root, '.claude', 'settings.json');
   const settings = readJSON(settingsFile); // 先读，坏 JSON 在写任何文件之前就报错
 
   w.write(path.join(root, CONFIG_FILE), JSON.stringify(cfg, null, 2) + '\n', { overwrite: true });
 
-  for (const [file, tpl] of [[HOOK_SCRIPT, 'hook.mjs'], [MEMDIR_SCRIPT, 'claude-task-memdir.mjs']]) {
-    if (cfg.hooks) w.write(path.join(root, file), readTemplate(tpl), { overwrite: true });
+  // /next 靠 hook 脚本的 queue 子命令拿队列，所以有意和 hook 绑在一起：--no-hooks 时不装、已装的删掉
+  const files = [
+    [HOOK_SCRIPT, 'hook.mjs'],
+    [MEMDIR_SCRIPT, 'claude-task-memdir.mjs'],
+    [QUEUE_SCRIPT, 'claude-task-queue.mjs'],
+    [NEXT_COMMAND, 'next.md', true],
+  ];
+  for (const [file, tpl, vars] of files) {
+    const text = vars ? render(readTemplate(tpl), templateVars(root, cfg)) : readTemplate(tpl);
+    if (cfg.hooks) w.write(path.join(root, file), text, { overwrite: true });
     else w.remove(path.join(root, file));
   }
   if (settings || cfg.hooks) {

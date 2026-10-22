@@ -2,22 +2,27 @@
 import path from 'node:path';
 import { resolveImage, saveImage } from './assets.mjs';
 import {
-  addBacklogImage, createBacklog, deleteBacklog, getBacklog, listBacklog, reorderBacklog, updateBacklog,
+  addBacklogImage, createBacklog, createBacklogBatch, deleteBacklog, getBacklog, listBacklog, reorderBacklog, updateBacklog,
 } from './backlog.mjs';
-import { annotate, approveDraft, getChat, removeChat, startRun, stopRun } from './ai/drafts.mjs';
+import { approveDraft } from './ai/approve.mjs';
+import { annotate, getChat, removeChat, startBatch, startRun, stopRun } from './ai/drafts.mjs';
+import { migrateBacklog } from './backlogMigrate.mjs';
 import { readTranscript } from './transcript.mjs';
 import { linkedSessions } from './transcriptLinks.mjs';
 import { addSubtask, appendAttachment, getTask, saveContent, setStatus, toggleSubtask } from './edit.mjs';
 import { HttpError } from './fsutil.mjs';
+import { setQueue } from './queue.mjs';
 import { addProjects, findProject, readProjects, removeProject, scan, summarize } from './projects.mjs';
 import { getSession, listSessions, relatedSessions } from './sessions.mjs';
-import { startBacklog } from './start.mjs';
 import { listTasks, resolveTask } from './tasks.mjs';
 
 const P = '/api/p/([^/]+)';
 const T = `${P}/tasks/([^/]+)`;
 const B = `${P}/backlog/([^/]+)`;
 const R = (method, pattern, fn, body) => ({ method, re: new RegExp(`^${pattern}$`), fn, body, project: pattern.startsWith(P) });
+
+// AI 进度通过 SSE 的 ai 事件推给页面
+const aiEmit = (ctx, pid, id) => (kind, data) => ctx.broadcast('ai', { project: pid, id, kind, ...data });
 
 const withSessions = (root, task) => ({ ...task, sessions: relatedSessions(root, task.date, task.num) });
 
@@ -49,13 +54,23 @@ const ROUTES = [
   R('POST', `${T}/status`, ({ root, params, json }) => withSessions(root, setStatus(root, params[1], json)), 'json'),
   R('PUT', `${T}/content`, ({ root, params, json }) => withSessions(root, saveContent(root, params[1], json)), 'json'),
   R('POST', `${T}/images`, uploadTaskImage, 'raw'),
+  // 执行队列：一次写好整个顺序（看板拖进 / 拖出 / 上下拖都走这里）
+  R('POST', `${P}/queue`, ({ root, json }) => ({ tasks: setQueue(root, json.ids) }), 'json'),
 
-  R('GET', `${P}/backlog`, ({ root }) => ({ items: annotate(root, listBacklog(root)) })),
+  // 列出前先把旧版「待执行队列」里的条目转走（幂等）
+  R('GET', `${P}/backlog`, ({ root }) => {
+    migrateBacklog(root);
+    return { items: annotate(root, listBacklog(root)) };
+  }),
   R('POST', `${P}/backlog`, ({ root, json }) => createBacklog(root, json), 'json'),
+  R('POST', `${P}/backlog/batch`, ({ root, json }) => createBacklogBatch(root, json.items), 'json'),
+  // 批量 AI 整理：超过同时上限的排队，一条结束自动开下一条
+  R('POST', `${P}/backlog/ai`, ({ root, params, json, ctx }) => startBatch(root, json.ids, json, (id) => aiEmit(ctx, params[0], id)), 'json'),
   R('POST', `${P}/backlog/reorder`, ({ root, json }) => ({ items: annotate(root, reorderBacklog(root, json.ids)) }), 'json'),
   R('GET', B, ({ root, params }) => getBacklog(root, params[1])),
   R('PUT', B, ({ root, params, json }) => updateBacklog(root, params[1], json), 'json'),
   R('DELETE', B, ({ root, params }) => {
+    stopRun(root, params[1]);
     removeChat(root, params[1]);
     return { items: annotate(root, deleteBacklog(root, params[1])) };
   }),
@@ -63,17 +78,10 @@ const ROUTES = [
   // 完整对话（只读）：任务关联了哪些会话、某个会话的原文（from = 上次读到的字节位置，用来实时追加）
   R('GET', `${T}/conversations`, ({ root, params }) => ({ sessions: linkedSessions(root, getTask(root, params[1])) })),
   R('GET', `${P}/transcripts/([^/]+)`, ({ root, params, url }) => readTranscript(root, params[1], url.searchParams.get('from'))),
-  R('POST', `${B}/start`, ({ root, params }) => {
-    const out = startBacklog(root, params[1]);
-    removeChat(root, params[1]);
-    return out;
-  }),
-  // AI 整理：进度通过 SSE 的 ai 事件推给页面
   R('GET', `${B}/chat`, ({ root, params }) => getChat(root, params[1])),
-  R('POST', `${B}/ai`, ({ root, params, json, ctx }) => startRun(root, params[1], json, {
-    emit: (kind, data) => ctx.broadcast('ai', { project: params[0], id: params[1], kind, ...data }),
-  }), 'json'),
+  R('POST', `${B}/ai`, ({ root, params, json, ctx }) => startRun(root, params[1], json, { emit: aiEmit(ctx, params[0], params[1]) }), 'json'),
   R('POST', `${B}/ai/stop`, ({ root, params }) => stopRun(root, params[1])),
+  // 确认 = 转成今天的 task 文件上看板，返回新 task id
   R('POST', `${B}/approve`, ({ root, params }) => approveDraft(root, params[1])),
 
   R('GET', `${P}/sessions`, ({ root }) => ({ sessions: listSessions(root) })),

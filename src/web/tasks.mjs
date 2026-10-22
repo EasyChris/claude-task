@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseRunOrder } from '../../templates/claude-task-queue.mjs';
 import { parseFrontmatter } from './frontmatter.mjs';
 import { HttpError, readTextOr, safeReaddir } from './fsutil.mjs';
 import { readIndexStatuses } from './indexfile.mjs';
@@ -52,6 +53,7 @@ export function parseTask(text, { date, num, indexText = '' }) {
     progress: { done: subtasks.filter((s) => s.done).length, total: subtasks.length },
     note: indexText || statusLine,
     completed: fm?.completed || null,
+    runOrder: parseRunOrder(fm?.run_order), // 执行队列里的顺序；没有 = 不在队列里
   };
 }
 

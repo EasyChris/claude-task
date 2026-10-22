@@ -99,10 +99,10 @@ export default function DraftPane({ pid, item, chat, running, onSend, onApprove,
 
       <div className="pane-foot">
         <span className="hint">
-          {questions.length ? '直接确认的话，没回答的按建议处理。' : '确认后进入待执行队列，Claude 开工时不再等你确认。'}
+          {questions.length ? '直接确认的话，没回答的按建议处理。' : '确认后转成今天的任务上看板，Claude 开工时不再等你确认。'}
         </span>
-        <button type="button" className="btn primary" disabled={running || editing || !chat?.rounds} onClick={onApprove}>
-          ✓ 确认，加入队列
+        <button type="button" className="btn primary" disabled={running || editing} onClick={onApprove}>
+          ✓ 确认，上看板
         </button>
       </div>
     </section>

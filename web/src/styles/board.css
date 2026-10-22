@@ -26,7 +26,7 @@
 
 /* 看板 */
 .board-page { max-width: none; }
-.board { display: grid; grid-template-columns: repeat(3, minmax(250px, 1fr)); gap: 16px; align-items: start; }
+.board { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 14px; align-items: start; }
 .col {
   background: color-mix(in srgb, var(--bg-2) 80%, transparent); border: 1px solid var(--line);
   border-radius: 10px; min-height: 240px; transition: border-color 0.12s, background 0.12s;
@@ -37,6 +37,9 @@
   font-size: 13.5px; font-weight: 600; border-bottom: 1px solid var(--line);
 }
 .col-head::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--t-plan); }
+.col-queue .col-head::before { background: var(--t-wait); }
+.col-queue { border-style: dashed; border-color: var(--line-2); }
+.col-queue.over { border-style: solid; }
 .col-active .col-head::before { background: var(--t-active); }
 .col-done .col-head::before { background: var(--t-done); }
 .col-count { color: var(--muted); font-weight: 400; font-size: 12px; }
@@ -57,6 +60,13 @@
 .tcard.is-done .tcard-title { color: var(--ink-2); }
 .tcard-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--muted); }
 .tcard-title { font-size: 13.5px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* 执行队列：卡片左上角的序号，拖动时的落点线 */
+.tcard-order {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-right: 6px; padding: 0 4px;
+  border-radius: 4px; background: var(--t-wait-bg); color: var(--t-wait); font-weight: 600; font-size: 11px;
+}
+.tcard.slot-before { box-shadow: 0 -3px 0 0 var(--accent), var(--shadow); }
+.col-body.slot-end::after { content: ''; height: 3px; border-radius: 2px; background: var(--accent); }
 .tcard-note { font-size: 11.5px; color: var(--t-done); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .fold {
@@ -69,6 +79,10 @@
 .stale .tcard { opacity: 0.8; }
 .rest { margin-top: 16px; padding: 6px 12px; border: 1px dashed var(--line-2); border-radius: 10px; transition: border-color 0.12s, background 0.12s; }
 .rest-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; padding: 6px 0 8px; }
+
+@media (max-width: 1180px) {
+  .board { grid-template-columns: repeat(2, minmax(220px, 1fr)); }
+}
 
 @media (max-width: 900px) {
   .board { grid-template-columns: 1fr; }

@@ -50,7 +50,7 @@ export default function Overview({ projects, onScan }) {
               <>
                 <div className="stats">
                   <Stat n={p.counts.active} label="进行中" tone="active" />
-                  <Stat n={p.counts.waiting + p.counts.backlog} label="排队" />
+                  <Stat n={p.counts.queue} label="执行队列" tone="wait" />
                   <Stat n={p.counts.doneMonth} label="本月完成" tone="done" />
                 </div>
                 <div className="pcard-foot mono">
