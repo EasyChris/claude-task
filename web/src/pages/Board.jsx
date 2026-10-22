@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { P, T, api } from '../api.js';
 import { localDay, useData } from '../hooks.js';
-import { Link, taskPath } from '../router.jsx';
+import { Link, projectPath, taskPath } from '../router.jsx';
 import { cleanNote } from '../status.js';
 import { Empty, ErrorBox, Loading, Progress, StatusPill, shortDate, useToast } from '../ui.jsx';
 
 // 拖进某一列 = 把状态改成这一列的 target
 const COLUMNS = [
-  { key: 'plan', title: '规划 / 待确认', target: 'planning', has: ['queued', 'planning', 'awaiting_approval'] },
+  { key: 'plan', title: '待开始 / 待确认', target: 'planning', has: ['queued', 'planning', 'awaiting_approval'] },
   { key: 'active', title: '进行中', target: 'in_progress', has: ['in_progress'] },
   { key: 'done', title: '已完成', hint: '近 7 天', target: 'done', has: ['done'] },
 ];
@@ -39,6 +39,10 @@ function Card({ t, pid, onDragStart }) {
 }
 
 export default function Board({ pid, version }) {
+  // 规划队列（docs/backlog）不在看板上，列头给个数和入口
+  const backlog = useData(`${P(pid)}/backlog`, version).data?.items || [];
+  const drafts = backlog.filter((i) => i.status === 'draft').length;
+  const queued = backlog.length - drafts;
   const toast = useToast();
   const { data, error, reload, setData } = useData(`${P(pid)}/tasks`, version);
   const [over, setOver] = useState(null);
@@ -104,6 +108,11 @@ export default function Board({ pid, version }) {
                 <span>{c.title}</span>
                 <span className="col-count mono">{items.length}</span>
                 {c.hint && <span className="col-hint">{c.hint}</span>}
+                {c.key === 'plan' && queued + drafts > 0 && (
+                  <Link to={projectPath(pid, 'backlog')} className="col-link" title="规划里的条目点「开始」后才会出现在看板上">
+                    规划队列 {queued} 条{drafts ? ` · 草稿 ${drafts}` : ''} →
+                  </Link>
+                )}
               </h2>
               <div className="col-body">
                 {items.map((t) => <Card key={t.id} t={t} pid={pid} onDragStart={onDragStart} />)}
